@@ -21,8 +21,15 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/csjewell/git-next-tag/cmd"
+import (
+	"os"
+
+	"github.com/csjewell/git-next-tag/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	err := cmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }

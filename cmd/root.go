@@ -25,6 +25,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
@@ -80,11 +81,8 @@ var rootCmd = &cobra.Command{
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
+func Execute() error {
+	return rootCmd.Execute()
 }
 
 func init() {
@@ -99,7 +97,6 @@ func init() {
 
 // initConfig reads in and creates or updates a config file.
 func initConfig() error {
-
 	// Find current directory.
 	gitDir, err := os.Getwd()
 	if err != nil {
@@ -134,7 +131,10 @@ func initConfig() error {
 		viper.Set("tag_annotated", true)
 		viper.Set("version_files", []string{})
 		viper.Set("always_leave_version_pre", true)
-		viper.WriteConfig()
+		err = viper.WriteConfig()
+		if err != nil {
+			return fmt.Errorf("Could not save configuration: %w", err)
+		}
 	}
 
 	return nil
@@ -330,18 +330,21 @@ func askInitialTagging() (string, error) {
 	return versionInitial, nil
 }
 
+// This is my 'TODO' area of functions I think I'll need soon.
+//
+//revive:disable:unused-parameter
 func checkForNewVersion(fileName string, newVersion string) error {
 	return errors.New("checkForNewVersion not implemented yet")
 }
 
-func doTagging(_ string) error {
+func doTagging(tag string) error {
 	return errors.New("Tagging not implemented yet")
 }
 
-func replaceInFile(_, _, _ string) error {
+func replaceInFile(fileName, newVersion string) error {
 	return errors.New("replaceInFile not implemented yet")
 }
 
-func createFile(filename string) error {
+func createFile(fileName string) error {
 	return errors.New("createFile not implemented yet")
 }

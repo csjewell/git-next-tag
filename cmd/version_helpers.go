@@ -65,7 +65,7 @@ func init() {
 // FullVersion returns the version, including git status.
 func FullVersion() string {
 	v := Version
-	rx, _ := regexp.Compile(`+pre\z`)
+	rx, _ := regexp.Compile(`\+pre\z`)
 	if rx.MatchString(v) {
 		v += fmt.Sprintf(" (snapshot: %s)", fullCommit)
 	}

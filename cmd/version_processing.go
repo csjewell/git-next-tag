@@ -29,7 +29,7 @@ import (
 	"strings"
 )
 
-var rxVersion *regexp.Regexp = func() *regexp.Regexp {
+var rxVersion = func() *regexp.Regexp {
 	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[+](pre))?`)
 	return rx
 }()

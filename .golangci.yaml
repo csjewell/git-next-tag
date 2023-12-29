@@ -1,0 +1,29 @@
+linters:
+  enable:
+    - revive
+  disable:
+    - unused
+linters-settings:
+  revive:
+    severity: warning
+    enable-all-rules: true
+    rules:
+      - name: cyclomatic
+        disabled: true
+      - name: cognitive-complexity
+        disabled: true
+      - name: function-length
+        disabled: true
+      - name: line-length-limit
+        disabled: true
+      - name: exported
+        severity: error
+      - name: unused-parameter
+        severity: error
+      - name: add-constant
+        arguments:
+          - maxLitCount: "3"
+            allowStrs: "\"\""
+            allowInts: "0,1,2"
+            allowFloats: "0.0,0.,1.0,1.,2.0,2."
+

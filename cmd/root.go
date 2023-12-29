@@ -156,8 +156,10 @@ func nextTag(_ *cobra.Command, _ []string) error {
 		}
 	*/
 
+	//revive:disable:add-constant 100 is an only-used-once size
 	tags := make(map[string]*object.Tag)
 	tagNames := make([]string, 0, 100)
+	//revive:enable:add-constant
 
 	// Start by checking if there are any tags
 	iter, err := repo.Tags()
@@ -326,6 +328,10 @@ func askInitialTagging() (string, error) {
 	}
 
 	return versionInitial, nil
+}
+
+func checkForNewVersion(fileName string, newVersion string) error {
+	return errors.New("checkForNewVersion not implemented yet")
 }
 
 func doTagging(_ string) error {

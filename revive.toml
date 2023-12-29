@@ -3,28 +3,23 @@ severity = "warning"
 confidence = 0.8
 errorCode = 0
 warningCode = 0
+enableAllRules = true
 
-[rule.blank-imports]
-[rule.context-as-argument]
-[rule.context-keys-type]
-[rule.dot-imports]
-[rule.error-return]
-[rule.error-strings]
-[rule.error-naming]
+[rule.cyclomatic]
+    disabled = true
+[rule.cognitive-complexity]
+    disabled = true
+[rule.function-length]
+    disabled = true
+[rule.line-length-limit]
+    disabled = true
+
+[rule.add-constant]
+    arguments = [{maxLitCount = "3",allowStrs ="\"\"",allowInts="0,1,2",allowFloats="0.0,0.,1.0,1.,2.0,2."}]
+
 [rule.exported]
-[rule.if-return]
-[rule.increment-decrement]
-[rule.var-naming]
-[rule.var-declaration]
-[rule.package-comments]
-[rule.range]
-[rule.receiver-naming]
-[rule.time-naming]
-[rule.unexported-return]
-[rule.indent-error-flow]
-[rule.errorf]
-[rule.empty-block]
-[rule.superfluous-else]
+    severity = "error"
 [rule.unused-parameter]
-[rule.unreachable-code]
-[rule.redefines-builtin-id]
+    severity = "error"
+
+

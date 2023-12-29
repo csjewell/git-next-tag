@@ -25,18 +25,22 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"path"
+	"slices"
+	"sort"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// TODO: Check out using github.com/charmbracelet/bubbletea instead of promptui
 
 // VersionSegment specifies what segment of the version is being changed.
 type VersionSegment int
@@ -51,6 +55,12 @@ const (
 	versionRC
 	versionPre
 )
+
+var vsName = []string{"major", "minor", "patch", "alpha", "beta", "gamma", "rc", "pre"}
+
+func (vs VersionSegment) String() string {
+	return vsName[vs]
+}
 
 var (
 	cfgFile string
@@ -71,7 +81,6 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	fmt.Println(Version())
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -88,7 +97,7 @@ func init() {
 	rootCmd.Flags().Bool("patch", false, "Increment patch version")
 }
 
-// initConfig reads in config file and ENV variables if set.
+// initConfig reads in and creates or updates a config file.
 func initConfig() error {
 
 	// Find current directory.
@@ -133,20 +142,22 @@ func initConfig() error {
 
 func nextTag(_ *cobra.Command, _ []string) error {
 	// Start by checking for a clean tree.
-	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	status, err := wt.Status()
-	if err != nil {
-		return err
-	}
-	if !status.IsClean() {
-		return errors.New("git tree is not clean")
-	}
+	/*
+		wt, err := repo.Worktree()
+		if err != nil {
+			return err
+		}
+		status, err := wt.Status()
+		if err != nil {
+			return err
+		}
+		if !status.IsClean() {
+			return errors.New("git tree is not clean")
+		}
+	*/
 
 	tags := make(map[string]*object.Tag)
-	tagNames := make([]string, 100)
+	tagNames := make([]string, 0, 100)
 
 	// Start by checking if there are any tags
 	iter, err := repo.Tags()
@@ -171,40 +182,81 @@ func nextTag(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// sort.Slice()
+	if len(tagNames) == 0 {
+		initialTag, err := askInitialTagging()
+		if err != nil {
+			return err
+		}
+		return doTagging(initialTag)
+	}
+
+	tagVersions := make(map[string]*ParsedVersion)
+	for _, s := range tagNames {
+		pv := parseVersion(s)
+		tagVersions[s] = pv
+	}
+
+	sort.Slice(tagNames, func(i, j int) bool {
+		tvj := tagVersions[tagNames[j]]
+		if tvj == nil {
+			return false
+		}
+
+		tvi := tagVersions[tagNames[i]]
+		if tvi == nil {
+			return true
+		}
+
+		if tvi.major < tvj.major {
+			return true
+		}
+		if tvi.major > tvj.major {
+			return false
+		}
+
+		if tvi.minor < tvj.minor {
+			return true
+		}
+		if tvi.minor > tvj.minor {
+			return false
+		}
+
+		if tvi.patch < tvj.patch {
+			return true
+		}
+		if tvi.patch > tvj.patch {
+			return false
+		}
+
+		if tvi.lowerCategory < tvj.lowerCategory {
+			return true
+		}
+		if tvi.lowerCategory > tvj.lowerCategory {
+			return false
+		}
+
+		if tvi.lower < tvj.lower {
+			return true
+		}
+		if tvi.lower > tvj.lower {
+			return false
+		}
+
+		if tvi.isPre && !tvj.isPre {
+			return true
+		}
+		return false
+	})
+
+	// To turn the slice around so that the greatest versions are first
+	slices.Reverse(tagNames)
+
+	currentVersion := tagNames[0]
+	slog.Info("Current version: " + currentVersion)
 
 	/*
 
 	   VERSION=""
-
-	   #get parameters
-	   while getopts v: flag
-	   do
-	     case "${flag}" in
-	       v) VERSION=${OPTARG};;
-	     esac
-	   done
-
-	   #get highest tag number, and add 1.0.0 if doesn't exist
-	   CURRENT_VERSION=`git describe --abbrev=0 --tags 2>/dev/null`
-
-	   if [[ $CURRENT_VERSION == '' ]]
-	   then
-	     CURRENT_VERSION='v1.0.0'
-	   fi
-	   echo "Current Version: $CURRENT_VERSION"
-
-	   # Get rid of the v by splitting it off.
-	   CURRENT_VERSION_PARTS=(${CURRENT_VERSION//v/ })
-	   VNUM=${CURRENT_VERSION_PARTS[0]}
-
-	   #replace . with space so can split into an array
-	   CURRENT_VERSION_PARTS=(${VNUM//./ })
-
-	   #get number parts
-	   VNUM1=${CURRENT_VERSION_PARTS[0]}
-	   VNUM2=${CURRENT_VERSION_PARTS[1]}
-	   VNUM3=${CURRENT_VERSION_PARTS[2]}
 
 	   if [[ $VERSION == 'major' ]]
 	   then
@@ -248,4 +300,42 @@ func nextTag(_ *cobra.Command, _ []string) error {
 	*/
 
 	return nil
+}
+
+func askInitialTagging() (string, error) {
+	var versionInitial string
+	initialV := viper.GetBool("initial_v")
+	if initialV {
+		versionInitial = "v0.1.0"
+	} else {
+		versionInitial = "0.1.0"
+	}
+
+	menu := promptui.Select{
+		Label:     "Create initial tag to version " + versionInitial,
+		CursorPos: 0,
+		Items:     []string{"Yes", "No"},
+	}
+
+	_, ok, err := menu.Run()
+	if err != nil {
+		return "", errors.New("Cancelled initial tagging")
+	}
+	if ok == "No" {
+		return "", errors.New("Cancelled initial tagging")
+	}
+
+	return versionInitial, nil
+}
+
+func doTagging(_ string) error {
+	return errors.New("Tagging not implemented yet")
+}
+
+func replaceInFile(_, _, _ string) error {
+	return errors.New("replaceInFile not implemented yet")
+}
+
+func createFile(filename string) error {
+	return errors.New("createFile not implemented yet")
 }

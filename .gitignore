@@ -9,6 +9,7 @@
 
 # But not these files...
 !/.gitignore
+!/.goreleaser.yaml
 
 !*.go
 !go.sum
@@ -22,4 +23,4 @@
 !*/
 
 # ...and not these files, either.
-!.github/workflow/*.yml
+!.github/workflows/*.yml

@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
@@ -41,10 +42,11 @@ const (
 	versionMajor VersionSegment = iota
 	versionMinor
 	versionPatch
-	versionPre
 	versionAlpha
 	versionBeta
+	versionGamma
 	versionRC
+	versionPre
 )
 
 var (
@@ -55,14 +57,10 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "git-next-tag",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:     "git next-tag",
+	Version: FullVersion(),
+	Short:   "Commit the next tag.",
+	Long:    `...`,
 	PreRunE: func(cmd *cobra.Command, args []string) error { return initConfig() },
 	RunE:    func(cmd *cobra.Command, args []string) error { return nextTag(cmd, args) },
 }
@@ -70,6 +68,7 @@ to quickly create a Cobra application.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	fmt.Println(Version())
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -81,9 +80,9 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.Flags().Bool("major", false, "Increment major")
-	rootCmd.Flags().Bool("minor", false, "Increment minor")
-	rootCmd.Flags().Bool("patch", false, "Increment patch")
+	rootCmd.Flags().Bool("major", false, "Increment major version")
+	rootCmd.Flags().Bool("minor", false, "Increment minor version")
+	rootCmd.Flags().Bool("patch", false, "Increment patch version")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -115,9 +114,10 @@ func initConfig() error {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		slog.Debug("Using config file:", viper.ConfigFileUsed())
+		slog.Debug("Using config file:" + viper.ConfigFileUsed())
 	} else {
 		// Initialize the file.
+		// TODO: Make this a 'question and answer' bit
 		viper.Set("initial_v", true)
 		viper.Set("tag_annotated", true)
 		viper.Set("version_files", []string{})

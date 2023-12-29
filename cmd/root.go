@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
+// Package cmd implements the CLI structure of git-next-tag.
 package cmd
 
 import (
@@ -36,6 +38,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// VersionSegment specifies what segment of the version is being changed.
 type VersionSegment int
 
 const (
@@ -128,7 +131,7 @@ func initConfig() error {
 	return nil
 }
 
-func nextTag(cmd *cobra.Command, args []string) error {
+func nextTag(_ *cobra.Command, _ []string) error {
 	// Start by checking for a clean tree.
 	wt, err := repo.Worktree()
 	if err != nil {
@@ -139,7 +142,7 @@ func nextTag(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if !status.IsClean() {
-		return errors.New("Git tree is not clean.")
+		return errors.New("git tree is not clean")
 	}
 
 	tags := make(map[string]*object.Tag)

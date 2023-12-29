@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
+// Package cmd implements the CLI structure of git-next-tag.
 package cmd
 
 import (
@@ -33,7 +35,7 @@ import (
 // commit is the commit hash
 // uncommitted is whether there were other uncommitted changes when built
 // FullCommit is the full commit string.
-var commit, uncommitted, FullCommit = func() (string, bool, string) {
+var commit, uncommitted, fullCommit = func() (string, bool, string) {
 	commit := ""
 	modified := false
 	commitInfo := ""
@@ -70,7 +72,7 @@ func FullVersion() string {
 	v := version
 	matches := rxVersion.FindStringSubmatch(v)
 	if len(matches) > 0 && matches[6] == "pre" {
-		v += fmt.Sprintf(" (snapshot: %s)", FullCommit)
+		v += fmt.Sprintf(" (snapshot: %s)", fullCommit)
 	}
 	return v
 }

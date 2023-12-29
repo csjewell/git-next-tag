@@ -10,11 +10,11 @@
 # But not these files...
 !/.gitignore
 !/.goreleaser.yaml
+!/revive.toml
 
 !*.go
 !go.sum
 !go.mod
-
 !*.md
 
 # !Makefile

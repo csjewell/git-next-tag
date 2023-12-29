@@ -20,3 +20,6 @@
 
 # ...even if they are in subdirectories
 !*/
+
+# ...and not these files, either.
+!.github/workflow/*.yml

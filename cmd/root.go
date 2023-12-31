@@ -32,7 +32,6 @@ import (
 	"path"
 	"slices"
 	"sort"
-	"strings"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -374,60 +373,6 @@ func askInitialTagging() (string, error) {
 	}
 
 	return versionInitial, nil
-}
-
-func replaceInFile(fileName, newVersion string) error {
-	input, err := os.ReadFile(fileName)
-	if err != nil {
-		return fmt.Errorf("Could not read file %s: %w", fileName, err)
-	}
-
-	fi, err := os.Stat(fileName)
-	if err != nil {
-		return fmt.Errorf("Could not get information about file %s: %w", fileName, err)
-	}
-
-	lines := strings.Split(string(input), "\n")
-
-	for i, line := range lines {
-		finds := rxVersion.FindAllString(line, -1)
-		finds = slices.Compact(finds)
-		if len(finds) != 0 {
-			for _, find := range finds {
-				if find != newVersion {
-					line = strings.Replace(line, find, newVersion, -1)
-				}
-			}
-
-			lines[i] = line
-		}
-	}
-
-	output := strings.Join(lines, "\n")
-	err = os.WriteFile(fileName, []byte(output), fi.Mode().Perm())
-	if err != nil {
-		return fmt.Errorf("Could not write to file %s: %w", fileName, err)
-	}
-
-	return nil
-}
-
-func createVersionDotGoFile(pkg, fileName string) error {
-	versionFile := `
-package ` + pkg + `
-
-// Version is the current version of the library or command
-var Version = func() string { return "v0.1.0" }()
-`
-
-	//revive:disable:add-constant
-	err := os.WriteFile(fileName, []byte(versionFile), 0644)
-	//revive:enable:add-constant
-	if err != nil {
-		return fmt.Errorf("Could not write to file %s: %w", fileName, err)
-	}
-
-	return nil
 }
 
 // This is my 'TODO' area of functions I think I'll need soon.

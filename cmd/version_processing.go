@@ -24,10 +24,15 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
 var rxVersion = func() *regexp.Regexp {
@@ -109,4 +114,154 @@ func (pv *ParsedVersion) String() string {
 		s += "+pre"
 	}
 	return s
+}
+
+func getSpecifiedVersion(flags *pflag.FlagSet, pvCurrent *ParsedVersion) (*ParsedVersion, error) {
+	getFlag := func(s string) bool {
+		b, _ := flags.GetBool(s)
+		return b
+	}
+	var pv ParsedVersion
+	if getFlag("major") {
+		pv = ParsedVersion{
+			major:         pvCurrent.major + 1,
+			minor:         0,
+			patch:         0,
+			lower:         0,
+			lowerCategory: versionNone,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	if getFlag("minor") {
+		pv = ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor + 1,
+			patch:         0,
+			lower:         0,
+			lowerCategory: versionNone,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	if getFlag("patch") {
+		pv = ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch + 1,
+			lower:         0,
+			lowerCategory: versionNone,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	if getFlag("alpha") {
+		return lowerOK(pvCurrent, versionAlpha)
+	}
+	if getFlag("beta") {
+		return lowerOK(pvCurrent, versionBeta)
+	}
+	if getFlag("gamma") {
+		return lowerOK(pvCurrent, versionGamma)
+	}
+	if getFlag("rc") {
+		return lowerOK(pvCurrent, versionGamma)
+	}
+
+	return nil, errors.New("Did not specify how to upgrade the version")
+}
+
+var lowerMap = map[VersionSegment]map[VersionSegment]int{
+	versionAlpha: {versionNone: 1, versionAlpha: 1, versionBeta: 0, versionGamma: 0, versionRC: 0},
+	versionBeta:  {versionNone: 1, versionAlpha: 2, versionBeta: 1, versionGamma: 0, versionRC: 0},
+	versionGamma: {versionNone: 1, versionAlpha: 2, versionBeta: 2, versionGamma: 1, versionRC: 0},
+	versionRC:    {versionNone: 1, versionAlpha: 2, versionBeta: 2, versionGamma: 2, versionRC: 1},
+}
+
+func lowerOK(pvCurrent *ParsedVersion, seg VersionSegment) (*ParsedVersion, error) {
+	i := lowerMap[seg][pvCurrent.lowerCategory]
+	if i == 0 {
+		return nil, errors.New("Cannot create an " + seg.String() + " version if the current version is already a(n) " + pvCurrent.lowerCategory.String() + " one")
+	}
+	if i == 1 {
+		pv := ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch,
+			lower:         pvCurrent.lower + 1,
+			lowerCategory: seg,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	if i == 2 {
+		pv := ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch,
+			lower:         1,
+			lowerCategory: seg,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	panic("should not get here")
+}
+
+func sortTags(tagNames []string, tagVersions map[string]*ParsedVersion) []string {
+	sort.Slice(tagNames, func(i, j int) bool {
+		tvj := tagVersions[tagNames[j]]
+		if tvj == nil {
+			return false
+		}
+
+		tvi := tagVersions[tagNames[i]]
+		if tvi == nil {
+			return true
+		}
+
+		if tvi.major < tvj.major {
+			return true
+		}
+		if tvi.major > tvj.major {
+			return false
+		}
+
+		if tvi.minor < tvj.minor {
+			return true
+		}
+		if tvi.minor > tvj.minor {
+			return false
+		}
+
+		if tvi.patch < tvj.patch {
+			return true
+		}
+		if tvi.patch > tvj.patch {
+			return false
+		}
+
+		if tvi.lowerCategory < tvj.lowerCategory {
+			return true
+		}
+		if tvi.lowerCategory > tvj.lowerCategory {
+			return false
+		}
+
+		if tvi.lower < tvj.lower {
+			return true
+		}
+		if tvi.lower > tvj.lower {
+			return false
+		}
+
+		if tvi.isPre && !tvj.isPre {
+			return true
+		}
+		return false
+	})
+
+	// To turn the slice around so that the greatest versions are first
+	slices.Reverse(tagNames)
+	return tagNames
 }

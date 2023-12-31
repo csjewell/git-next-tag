@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path"
 	"slices"
 	"sort"
@@ -35,7 +36,6 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -44,31 +44,9 @@ import (
 
 // TODO: Check out using github.com/charmbracelet/bubbletea instead of promptui
 
-// VersionSegment specifies what segment of the version is being changed.
-type VersionSegment int
-
-const (
-	versionNone VersionSegment = iota
-	versionMajor
-	versionMinor
-	versionPatch
-	versionAlpha
-	versionBeta
-	versionGamma
-	versionRC
-	versionPre
-)
-
-var vsName = []string{"", "major", "minor", "patch", "alpha", "beta", "gamma", "rc", "pre"}
-
-func (vs VersionSegment) String() string {
-	return vsName[vs]
-}
-
 var (
 	cfgFile string
 	repo    *git.Repository
-	segment *VersionSegment
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -94,9 +72,14 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
+	rootCmd.Flags().Bool("dry-run", true, "Do a dry-run only")
 	rootCmd.Flags().Bool("major", false, "Increment major version")
 	rootCmd.Flags().Bool("minor", false, "Increment minor version")
 	rootCmd.Flags().Bool("patch", false, "Increment patch version")
+	rootCmd.Flags().Bool("alpha", false, "Increment alpha version")
+	rootCmd.Flags().Bool("beta", false, "Increment beta version")
+	rootCmd.Flags().Bool("gamma", false, "Increment gamma version")
+	rootCmd.Flags().Bool("rc", false, "Increment release candidate version")
 }
 
 // initConfig reads in and creates or updates a config file.
@@ -144,21 +127,16 @@ func initConfig() error {
 	return nil
 }
 
-func nextTag(_ *cobra.Command, _ []string) error {
-	// Start by checking for a clean tree.
-	/*
-		wt, err := repo.Worktree()
-		if err != nil {
-			return err
-		}
-		status, err := wt.Status()
-		if err != nil {
-			return err
-		}
-		if !status.IsClean() {
-			return errors.New("git tree is not clean")
-		}
-	*/
+func nextTag(cmd *cobra.Command, _ []string) error {
+	err := isTreeClean()
+	if err != nil {
+		return err
+	}
+
+	head, err := repo.Reference(plumbing.HEAD, true)
+	if err != nil {
+		return err
+	}
 
 	tags, err := retrieveTags()
 	if err != nil {
@@ -170,7 +148,7 @@ func nextTag(_ *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
-		return doTagging(initialTag)
+		return doTagging(initialTag, head.Hash())
 	}
 
 	tagNames := make([]string, 0, len(tags))
@@ -191,98 +169,46 @@ func nextTag(_ *cobra.Command, _ []string) error {
 
 	currentParsedVersion := tagVersions[currentVersion]
 
-	nextVersion, err := getSpecifiedVersion(currentParsedVersion)
+	nextVersion, err := getSpecifiedVersion(cmd, currentParsedVersion)
 	if err != nil {
 		return err
 	}
 
-	//revive:disable:unhandled-error
-	fmt.Println(nextVersion)
-	//revive:enable:unhandled-error
-
 	// getRecommendedVersion(tags[currentVersion])
+	out, err := exec.Command("git", "describe", "--contains", head.Hash().String()).Output()
+	if err != nil {
+		return err
+	}
+	possibleTag := string(out)
+	if possibleTag != "" {
+		return fmt.Errorf("Repository is already tagged with %s and no more commits have been made", possibleTag)
+	}
+
+	err = doTagging(nextVersion.String(), head.Hash())
+	if err != nil {
+		return err
+	}
 
 	/*
 
-	   VERSION=""
-
-	   if [[ $VERSION == 'major' ]]
-	   then
-	     VNUM1=$((VNUM1+1))
-	     VNUM2=0
-	     VNUM3=0
-	   elif [[ $VERSION == 'minor' ]]
-	   then
-	     VNUM2=$((VNUM2+1))
-	     VNUM3=0
-	   elif [[ $VERSION == 'patch' ]]
-	   then
-	     VNUM3=$((VNUM3+1))
-	   else
-	     echo "No version type (https://semver.org/) or incorrect type specified, try: -v [major, minor, patch]"
-	     exit 1
-	   fi
-
-	   #create new tag, putting back the v.
-	   NEW_TAG="v$VNUM1.$VNUM2.$VNUM3"
-	   echo "($VERSION) updating $CURRENT_VERSION to $NEW_TAG"
-
-	   #get current hash and see if it already has a tag
-	   GIT_COMMIT=`git rev-parse HEAD`
-	   NEEDS_TAG=`git describe --tags --contains $GIT_COMMIT 2>/dev/null`
-
-	   #only tag if no tag already
-	   if [ -z "$NEEDS_TAG" ]; then
-	     git stash
-	     git tag $NEW_TAG
-	     echo "Tagged with $NEW_TAG"
-	     git push
-	     git push --tags
-	   else
-	     echo "Already a tag on this commit"
-	   fi
-
-	   exit 0
-
+	   git push
+	   git push --tags
 
 	*/
 
 	return nil
 }
 
-func retrieveTags() (map[string]*object.Tag, error) {
-	tags := make(map[string]*object.Tag)
-
-	// Start by checking if there are any tags
-	iter, err := repo.Tags()
-	if err != nil {
-		return nil, err
+func getSpecifiedVersion(cmd *cobra.Command, pvCurrent *ParsedVersion) (*ParsedVersion, error) {
+	flags := cmd.Flags()
+	getFlag := func(s string) bool {
+		b, _ := flags.GetBool(s)
+		return b
 	}
-
-	if err := iter.ForEach(func(ref *plumbing.Reference) error {
-		obj, err := repo.TagObject(ref.Hash())
-		switch err {
-		case nil:
-			tags[obj.Name] = obj
-		case plumbing.ErrObjectNotFound:
-			// Not a tag object
-		default:
-			// Some other error
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return tags, nil
-}
-
-func getSpecifiedVersion(currentPV *ParsedVersion) (*ParsedVersion, error) {
 	var pv ParsedVersion
-	if viper.GetBool("major") {
+	if getFlag("major") {
 		pv = ParsedVersion{
-			major:         currentPV.major + 1,
+			major:         pvCurrent.major + 1,
 			minor:         0,
 			patch:         0,
 			lower:         0,
@@ -291,10 +217,10 @@ func getSpecifiedVersion(currentPV *ParsedVersion) (*ParsedVersion, error) {
 		}
 		return &pv, nil
 	}
-	if viper.GetBool("minor") {
+	if getFlag("minor") {
 		pv = ParsedVersion{
-			major:         currentPV.major,
-			minor:         currentPV.minor + 1,
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor + 1,
 			patch:         0,
 			lower:         0,
 			lowerCategory: versionNone,
@@ -302,19 +228,68 @@ func getSpecifiedVersion(currentPV *ParsedVersion) (*ParsedVersion, error) {
 		}
 		return &pv, nil
 	}
-	if viper.GetBool("patch") {
+	if getFlag("patch") {
 		pv = ParsedVersion{
-			major:         currentPV.major,
-			minor:         currentPV.minor,
-			patch:         currentPV.patch + 1,
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch + 1,
 			lower:         0,
 			lowerCategory: versionNone,
 			isPre:         false,
 		}
 		return &pv, nil
 	}
+	if getFlag("alpha") {
+		return lowerOK(pvCurrent, versionAlpha)
+	}
+	if getFlag("beta") {
+		return lowerOK(pvCurrent, versionBeta)
+	}
+	if getFlag("gamma") {
+		return lowerOK(pvCurrent, versionGamma)
+	}
+	if getFlag("rc") {
+		return lowerOK(pvCurrent, versionGamma)
+	}
 
-	return nil, fmt.Errorf("Unfinished")
+	return nil, errors.New("Did not specify how to upgrade the version")
+}
+
+var lowerMap = map[VersionSegment]map[VersionSegment]int{
+	versionAlpha: {versionNone: 1, versionAlpha: 1, versionBeta: 0, versionGamma: 0, versionRC: 0},
+	versionBeta:  {versionNone: 1, versionAlpha: 2, versionBeta: 1, versionGamma: 0, versionRC: 0},
+	versionGamma: {versionNone: 1, versionAlpha: 2, versionBeta: 2, versionGamma: 1, versionRC: 0},
+	versionRC:    {versionNone: 1, versionAlpha: 2, versionBeta: 2, versionGamma: 2, versionRC: 1},
+}
+
+func lowerOK(pvCurrent *ParsedVersion, seg VersionSegment) (*ParsedVersion, error) {
+	i := lowerMap[seg][pvCurrent.lowerCategory]
+	if i == 0 {
+		return nil, errors.New("Cannot create an " + seg.String() + " version if the current version is already a(n) " + pvCurrent.lowerCategory.String() + " one")
+	}
+	if i == 1 {
+		pv := ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch,
+			lower:         pvCurrent.lower + 1,
+			lowerCategory: seg,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	if i == 2 {
+		pv := ParsedVersion{
+			major:         pvCurrent.major,
+			minor:         pvCurrent.minor,
+			patch:         pvCurrent.patch,
+			lower:         1,
+			lowerCategory: seg,
+			isPre:         false,
+		}
+		return &pv, nil
+	}
+	panic("should not get here")
 }
 
 func sortTags(tagNames []string, tagVersions map[string]*ParsedVersion) []string {
@@ -460,16 +435,4 @@ var Version = func() string { return "v0.1.0" }()
 //revive:disable:unused-parameter
 func checkForNewVersion(fileName string, newVersion string) error {
 	return errors.New("checkForNewVersion not implemented yet")
-}
-
-func doTagging(tag string) error {
-	return errors.New("Tagging not implemented yet")
-}
-
-func getRecommendedVersion(tag *object.Tag) error {
-	// headRef, err := repo.Reference(plumbing.HEAD, true)
-
-	// initialCommit, err := tag.Commit()
-
-	return fmt.Errorf("getRecommendedVersion not implemented yet")
 }

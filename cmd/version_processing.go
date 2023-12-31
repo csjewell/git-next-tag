@@ -24,6 +24,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,6 +34,27 @@ var rxVersion = func() *regexp.Regexp {
 	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[+](pre))?`)
 	return rx
 }()
+
+// VersionSegment specifies what segment of the version is being changed.
+type VersionSegment int
+
+const (
+	versionNone VersionSegment = iota
+	versionMajor
+	versionMinor
+	versionPatch
+	versionAlpha
+	versionBeta
+	versionGamma
+	versionRC
+	versionPre
+)
+
+var vsName = []string{"", "major", "minor", "patch", "alpha", "beta", "gamma", "rc", "pre"}
+
+func (vs VersionSegment) String() string {
+	return vsName[vs]
+}
 
 // TODO
 type ParsedVersion struct {
@@ -45,6 +67,7 @@ type ParsedVersion struct {
 }
 
 func GetParsedVersion() *ParsedVersion { return parseVersion(Version) }
+
 func parseVersion(v string) *ParsedVersion {
 	matches := rxVersion.FindStringSubmatch(v)
 	if len(matches) == 0 {
@@ -75,4 +98,15 @@ func parseVersion(v string) *ParsedVersion {
 	pv.patch, _ = strconv.Atoi(matches[3])
 
 	return &pv
+}
+
+func (pv *ParsedVersion) String() string {
+	s := fmt.Sprint(pv.major, ".", pv.minor, ".", pv.patch)
+	if pv.lowerCategory != versionNone {
+		s = fmt.Sprint(s, "-", pv.lowerCategory, ".", pv.lower)
+	}
+	if pv.isPre {
+		s += "+pre"
+	}
+	return s
 }

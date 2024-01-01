@@ -39,8 +39,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// TODO: Check out using github.com/charmbracelet/bubbletea instead of promptui
-
 var (
 	cfgFile string
 	repo    *git.Repository
@@ -110,18 +108,66 @@ func initConfig() error {
 		slog.Debug("Using config file:" + viper.ConfigFileUsed())
 	} else {
 		// Initialize the file.
-		// TODO: Make this a 'question and answer' bit
-		viper.Set("initial_v", true)
-		viper.Set("tag_annotated", false)
+		err = askConfig()
+		if err != nil {
+			return errors.New("Configuration collection cancelled")
+		}
+
 		viper.Set("version_files", []string{})
-		viper.Set("always_leave_version_pre", true)
-		err = viper.WriteConfig()
+
+		file := path.Join(gitDir, ".git-next-tag")
+		err = viper.WriteConfigAs(file)
 		if err != nil {
 			return fmt.Errorf("Could not save configuration: %w", err)
 		}
 	}
 
 	return nil
+}
+
+func askConfig() error {
+	b, err := askBoolean("Do you want to have an initial v on your versions?", true)
+	if err != nil {
+		return err
+	}
+	viper.Set("initial_v", b)
+
+	b, err = askBoolean("Do you want to have annotated tags in your git repository?", false)
+	if err != nil {
+		return err
+	}
+	viper.Set("tag_annotated", b)
+
+	b, err = askBoolean("Do you want to have any non-tagged version marked as a prerelease?", true)
+	if err != nil {
+		return err
+	}
+	viper.Set("always_leave_version_pre", b)
+
+	// viper.Set("version_files", []string{})
+
+	return nil
+}
+
+func askBoolean(s string, def bool) (bool, error) {
+	pos := 1
+	if def {
+		pos = 0
+	}
+	menu := promptui.Select{
+		Label:     s,
+		CursorPos: pos,
+		Items:     []string{"Yes", "No"},
+	}
+
+	_, ok, err := menu.Run()
+	if err != nil {
+		return false, errors.New("Cancelled")
+	}
+	if ok == "No" {
+		return false, nil
+	}
+	return true, nil
 }
 
 func nextTag(cmd *cobra.Command, _ []string) error {

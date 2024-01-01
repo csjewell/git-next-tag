@@ -26,6 +26,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -47,17 +48,13 @@ func isTreeClean() error {
 	}
 
 	if !status.IsClean() {
-		menu := promptui.Select{
+		prompt := promptui.Prompt{
 			Label:     "Git tree is not clean. Continue?",
-			CursorPos: 0,
-			Items:     []string{"Yes", "No"},
+			IsConfirm: true,
 		}
 
-		_, ok, err := menu.Run()
+		_, err := prompt.Run()
 		if err != nil {
-			return errors.New("Cancelled tagging because tree was not clean")
-		}
-		if ok == "No" {
 			return errors.New("Cancelled tagging because tree was not clean")
 		}
 	}
@@ -95,19 +92,20 @@ func retrieveTags() (map[string]*object.Tag, error) {
 
 // This is my 'TODO' area of functions I think I'll need soon.
 func doTagging(tag string, head plumbing.Hash) error {
-	menu := promptui.Select{
+	prompt := promptui.Prompt{
 		Label:     fmt.Sprintf("Creating tag for version %s. Continue?", tag),
-		CursorPos: 0,
-		Items:     []string{"Yes", "No"},
+		IsConfirm: true,
 	}
 
-	_, ok, err := menu.Run()
+	ok, err := prompt.Run()
 	if err != nil {
 		return errors.New("Tagging cancelled")
 	}
-	if ok == "No" {
+	if ok == "n" {
 		return errors.New("Tagging cancelled")
 	}
+
+	log.Fatal("OUCH!")
 
 	_, err = repo.CreateTag(tag, head, nil)
 	if err != nil {

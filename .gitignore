@@ -9,6 +9,7 @@
 
 # But not these files...
 !/.gitignore
+!/.git-next-tag
 !/.goreleaser.yaml
 !/.golangci.yaml
 !/revive.toml

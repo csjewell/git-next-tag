@@ -211,7 +211,7 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		tagVersions = append(tagVersions, pv)
 	}
 
-	sort.Sort(tagVersions)
+	sort.Sort(semver.ParsedVersionSlice(tagVersions))
 	tagNames = make([]string, len(tagVersions))
 	for _, v := range tagVersions {
 		tagNames = append(tagNames, v.String())

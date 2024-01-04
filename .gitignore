@@ -17,6 +17,7 @@
 !*.go
 !go.sum
 !go.mod
+!go.work
 !*.md
 
 # !Makefile

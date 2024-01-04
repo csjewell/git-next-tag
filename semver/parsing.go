@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Curtis Jewell <golang@curtisjewell.name>
+Copyright © 2023,2024 Curtis Jewell <golang@curtisjewell.name>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,12 @@ import (
 )
 
 var Regexp = func() *regexp.Regexp {
-	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[+](pre))?`)
+	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?`)
+	return rx
+}()
+
+var RegexpOnly = func() *regexp.Regexp {
+	rx, _ := regexp.Compile(`\Av?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?\z`)
 	return rx
 }()
 
@@ -70,7 +75,7 @@ type ParsedVersion struct {
 
 // ParseVersion attempts to parse a version string.
 func ParseVersion(v string) *ParsedVersion {
-	matches := Regexp.FindStringSubmatch(v)
+	matches := RegexpOnly.FindStringSubmatch(v)
 	if len(matches) == 0 {
 		return nil
 	}
@@ -135,7 +140,7 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment) (*ParsedVersion, err
 			lowerCategory: None,
 			isPre:         false,
 		}
-		return &pv, nil
+		return &pvNext, nil
 	case Patch:
 		pvNext = ParsedVersion{
 			major:         pv.major,
@@ -194,9 +199,9 @@ func (pv ParsedVersion) lowerOK(seg VersionSegment) (*ParsedVersion, error) {
 // ParsedVersionSlice is used to implement sort.Interface for a slice of *ParsedVersion
 type ParsedVersionSlice []*ParsedVersion
 
-func (s ParsedVersionSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
 func (s ParsedVersionSlice) Len() int { return len(s) }
+
+func (s ParsedVersionSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ParsedVersionSlice) Less(i, j int) bool {
 	tvj := s[j]

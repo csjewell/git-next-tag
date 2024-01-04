@@ -194,9 +194,9 @@ func (pv ParsedVersion) lowerOK(seg VersionSegment) (*ParsedVersion, error) {
 // ParsedVersionSlice is used to implement sort.Interface for a slice of *ParsedVersion
 type ParsedVersionSlice []*ParsedVersion
 
-func (s ParsedVersionSlice) Len() int { return len(s) }
-
 func (s ParsedVersionSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s ParsedVersionSlice) Len() int { return len(s) }
 
 func (s ParsedVersionSlice) Less(i, j int) bool {
 	tvj := s[j]

@@ -30,7 +30,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
+	"sort"
 
+	"github.com/csjewell/git-next-tag/semver"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/storage/filesystem"
@@ -202,18 +205,26 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		tagNames = append(tagNames, k)
 	}
 
-	tagVersions := make(map[string]*ParsedVersion)
+	tagVersions := make([]*semver.ParsedVersion, len(tagNames))
 	for _, s := range tagNames {
-		pv := parseVersion(s)
-		tagVersions[s] = pv
+		pv := semver.ParseVersion(s)
+		tagVersions = append(tagVersions, pv)
 	}
 
-	tagNames = sortTags(tagNames, tagVersions)
+	sort.Sort(tagVersions)
+	tagNames = make([]string, len(tagVersions))
+	for _, v := range tagVersions {
+		tagNames = append(tagNames, v.String())
+	}
+
+	// To turn the slice around so that the greatest versions are first
+	slices.Reverse(tagNames)
+	slices.Reverse(tagVersions)
 
 	currentVersion := tagNames[0]
 	slog.Debug("Current version: " + currentVersion)
 
-	currentParsedVersion := tagVersions[currentVersion]
+	currentParsedVersion := tagVersions[0]
 
 	nextVersion, err := getSpecifiedVersion(cmd.Flags(), currentParsedVersion)
 	if err != nil {

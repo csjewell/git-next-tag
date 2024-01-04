@@ -28,6 +28,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/csjewell/git-next-tag/semver"
 )
 
 func replaceInFile(fileName, newVersion string) error {
@@ -44,7 +46,7 @@ func replaceInFile(fileName, newVersion string) error {
 	lines := strings.Split(string(input), "\n")
 
 	for i, line := range lines {
-		finds := rxVersion.FindAllString(line, -1)
+		finds := semver.Regexp.FindAllString(line, -1)
 		finds = slices.Compact(finds)
 		if len(finds) != 0 {
 			for _, find := range finds {

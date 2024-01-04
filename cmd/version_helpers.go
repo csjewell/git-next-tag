@@ -24,10 +24,16 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"runtime/debug"
+
+	"github.com/csjewell/git-next-tag/semver"
+	"github.com/spf13/pflag"
 )
+
+func GetParsedVersion() *semver.ParsedVersion { return semver.ParseVersion(Version) }
 
 // From https://icinga.com/blog/2022/05/25/embedding-git-commit-information-in-go-binaries/,
 // altered to the use case.
@@ -65,9 +71,40 @@ func init() {
 // FullVersion returns the version, including git status.
 func FullVersion() string {
 	v := Version
-	rx, _ := regexp.Compile(`\+pre\z`)
+	rx, _ := regexp.Compile(`\-pre\z`)
 	if rx.MatchString(v) {
 		v += fmt.Sprintf(" (snapshot: %s)", fullCommit)
 	}
 	return v
+}
+
+func getSpecifiedVersion(flags *pflag.FlagSet, pvCurrent *semver.ParsedVersion) (*semver.ParsedVersion, error) {
+	getFlag := func(s string) bool {
+		b, _ := flags.GetBool(s)
+		return b
+	}
+
+	if getFlag("major") {
+		return pvCurrent.IncrementVersion(semver.Major)
+	}
+	if getFlag("minor") {
+		return pvCurrent.IncrementVersion(semver.Minor)
+	}
+	if getFlag("patch") {
+		return pvCurrent.IncrementVersion(semver.Patch)
+	}
+	if getFlag("alpha") {
+		return pvCurrent.IncrementVersion(semver.Alpha)
+	}
+	if getFlag("beta") {
+		return pvCurrent.IncrementVersion(semver.Beta)
+	}
+	if getFlag("gamma") {
+		return pvCurrent.IncrementVersion(semver.Gamma)
+	}
+	if getFlag("rc") {
+		return pvCurrent.IncrementVersion(semver.RC)
+	}
+
+	return nil, errors.New("Did not specify how to upgrade the version")
 }

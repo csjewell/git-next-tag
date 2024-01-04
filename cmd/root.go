@@ -40,11 +40,10 @@ import (
 )
 
 var (
-	cfgFile string
-	repo    *git.Repository
+	// cfgFile string
+	repo *git.Repository
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:                        "git next-tag",
 	Version:                    FullVersion(),
@@ -56,17 +55,11 @@ var rootCmd = &cobra.Command{
 	SuggestionsMinimumDistance: 5,
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() error {
 	return rootCmd.Execute()
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.Flags().Bool("dry-run", true, "Do a dry-run only")
 	rootCmd.Flags().Bool("major", false, "Increment major version")
 	rootCmd.Flags().Bool("minor", false, "Increment minor version")
@@ -144,12 +137,18 @@ func askConfig() error {
 	}
 	viper.Set("always_leave_version_pre", b)
 
+	// TODO: version_files
 	// viper.Set("version_files", []string{})
 
 	return nil
 }
 
+// askBoolean asks a boolean question.
+//
+//revive:disable:flag-parameter
 func askBoolean(s string, def bool) (bool, error) {
+	//revive:flag-parameter:enable
+
 	pos := 1
 	if def {
 		pos = 0
@@ -170,6 +169,7 @@ func askBoolean(s string, def bool) (bool, error) {
 	return true, nil
 }
 
+// nextTag gets the next tag requested.
 func nextTag(cmd *cobra.Command, _ []string) error {
 	err := isTreeClean()
 	if err != nil {
@@ -191,7 +191,10 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
-		return doTagging(initialTag, head.Hash())
+
+		dryrun, _ := cmd.Flags().GetBool("dry-run")
+
+		return doTagging(initialTag, head.Hash(), dryrun)
 	}
 
 	tagNames := make([]string, 0, len(tags))
@@ -222,26 +225,19 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+
 	possibleTag := string(out)
 	if possibleTag != "" {
 		return fmt.Errorf("Repository is already tagged with %s and no more commits have been made", possibleTag)
 	}
 
-	err = doTagging(nextVersion.String(), head.Hash())
-	if err != nil {
-		return err
-	}
+	dryrun, _ := cmd.Flags().GetBool("dry-run")
 
-	/*
-
-	   git push
-	   git push --tags
-
-	*/
-
-	return nil
+	err = doTagging(nextVersion.String(), head.Hash(), dryrun)
+	return err
 }
 
+// askInitialTagging gets the initial tag version and asks whether to cancel.
 func askInitialTagging() (string, error) {
 	var versionInitial string
 	initialV := viper.GetBool("initial_v")

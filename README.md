@@ -24,7 +24,7 @@ Examples:
     v0.2.1-pre
     1.4.9-rc.16-pre
 
-By default, the +pre marker, while not used in tags, will be used in any files where git-next-tag is allowed to update the version, AFTER a new tag is committed. After the new tag is committed, the last number in the version (either the patch level or the release-state modifier) will be incremented, and the -pre will be added. Then a new automatically-generated commit will be pushed. This behavior can be turned off.
+By default, the -pre marker, while not used in tags, will be used in any files where git-next-tag is allowed to update the version, AFTER a new tag is committed. After the new tag is committed, the last number in the version (either the patch level or the release-state modifier) will be incremented, and the -pre will be added. Then a new automatically-generated commit will be pushed. This behavior can be turned off.
 
 ## Configuration file
 

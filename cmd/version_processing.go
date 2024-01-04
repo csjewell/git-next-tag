@@ -61,7 +61,7 @@ func (vs VersionSegment) String() string {
 	return vsName[vs]
 }
 
-// TODO
+// ParsedVersion is a data type that represents a semver version within the limits this module uses.
 type ParsedVersion struct {
 	major         int
 	minor         int
@@ -105,13 +105,13 @@ func parseVersion(v string) *ParsedVersion {
 	return &pv
 }
 
-func (pv *ParsedVersion) String() string {
+func (pv ParsedVersion) String() string {
 	s := fmt.Sprint(pv.major, ".", pv.minor, ".", pv.patch)
 	if pv.lowerCategory != versionNone {
-		s = fmt.Sprint(s, "-", pv.lowerCategory, ".", pv.lower)
+		s += fmt.Sprint("-", pv.lowerCategory, ".", pv.lower)
 	}
 	if pv.isPre {
-		s += "+pre"
+		s += "-pre"
 	}
 	return s
 }

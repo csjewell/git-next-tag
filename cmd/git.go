@@ -26,16 +26,15 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/manifoldco/promptui"
 )
 
-// TODO: Check out using github.com/charmbracelet/bubbletea instead of promptui
-
+// isTreeClean checks if the tree is clean and cancels if requested.
 func isTreeClean() error {
 	wt, err := repo.Worktree()
 	if err != nil {
@@ -62,6 +61,7 @@ func isTreeClean() error {
 	return nil
 }
 
+// retrieveTags retrieves all tags in the current repository
 func retrieveTags() (map[string]*object.Tag, error) {
 	tags := make(map[string]*object.Tag)
 
@@ -90,39 +90,53 @@ func retrieveTags() (map[string]*object.Tag, error) {
 	return tags, nil
 }
 
-// This is my 'TODO' area of functions I think I'll need soon.
-func doTagging(tag string, head plumbing.Hash) error {
+// doTagging applies a new tag to the repository and pushes to all remotes.
+//
+//revive:disable:flag-parameter
+func doTagging(tag string, head plumbing.Hash, dryrun bool) error {
+	//revive:enable:flag-parameter
+
 	prompt := promptui.Prompt{
 		Label:     fmt.Sprintf("Creating tag for version %s. Continue?", tag),
 		IsConfirm: true,
 	}
 
-	ok, err := prompt.Run()
+	_, err := prompt.Run()
 	if err != nil {
 		return errors.New("Tagging cancelled")
 	}
-	if ok == "n" {
-		return errors.New("Tagging cancelled")
-	}
 
-	log.Fatal("OUCH!")
+	if dryrun {
+		return errors.New("Tagging cancelled due to dry-run")
+	}
 
 	_, err = repo.CreateTag(tag, head, nil)
 	if err != nil {
 		return err
 	}
-	slog.Info("Tagged revision %s as version %s", head.String(), tag)
+	slog.Info(fmt.Sprintf("Tagged revision %s as version %s", head.String(), tag))
 
-	/*
+	remotes, err := repo.Remotes()
+	if err != nil {
+		return err
+	}
 
-	   git push
-	   git push --tags
+	for _, remote := range remotes {
+		slog.Debug(fmt.Sprintf("Pushing to %s", remote.Config().Name))
+		err = remote.Push(&git.PushOptions{
+			RemoteName: remote.Config().Name,
+			RefSpecs:   remote.Config().Fetch,
+		})
+		if err != nil {
+			return err
+		}
+	}
 
-	*/
-
-	return errors.New("Tagging not implemented yet")
+	return nil
 }
 
+// This is my 'TODO' area of functions I think I'll need soon.
+//
 //revive:disable:unused-parameter
 func getRecommendedVersion(tag *object.Tag) error {
 	// headRef, err := repo.Reference(plumbing.HEAD, true)

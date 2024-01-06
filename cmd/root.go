@@ -166,7 +166,7 @@ func askBoolean(s string, def bool) (bool, error) {
 	return true, nil
 }
 
-// nextTag gets the next tag requested.
+// nextTag gets the next tag requested, saves it, etc.
 func nextTag(cmd *cobra.Command, _ []string) error {
 	err := isTreeClean()
 	if err != nil {
@@ -191,41 +191,38 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 
 		dryrun, _ := cmd.Flags().GetBool("dry-run")
 
+		// TODO: save files, commit, tag, save files, commit.
 		return doTagging(initialTag, head.Hash(), dryrun)
 	}
 
-	tagNames := make([]string, 0, len(tags))
+	tagVersions := make([]*semver.ParsedVersion, len(tags))
 	for k := range tags {
-		tagNames = append(tagNames, k)
-	}
-
-	tagVersions := make([]*semver.ParsedVersion, len(tagNames))
-	for _, s := range tagNames {
-		pv := semver.ParseVersion(s)
+		pv := semver.ParseVersion(k)
 		tagVersions = append(tagVersions, pv)
 	}
 
 	sort.Sort(semver.ParsedVersionSlice(tagVersions))
-	tagNames = make([]string, len(tagVersions))
-	for _, v := range tagVersions {
-		tagNames = append(tagNames, v.String())
-	}
 
 	// To turn the slice around so that the greatest versions are first
-	slices.Reverse(tagNames)
 	slices.Reverse(tagVersions)
 
-	currentVersion := tagNames[0]
-	slog.Debug("Current version: " + currentVersion)
+	pvCurrent := tagVersions[0]
+	vCurrent := pvCurrent.String()
+	// TODO: Add the v if required.
+	slog.Debug("Current version: " + vCurrent)
 
-	currentParsedVersion := tagVersions[0]
-
-	nextVersion, err := getSpecifiedVersion(cmd.Flags(), currentParsedVersion)
+	vs, err := getVersionSegment(cmd.Flags())
 	if err != nil {
 		return err
 	}
 
-	// getRecommendedVersion(tags[currentVersion])
+	pvNext, err := pvCurrent.IncrementVersion(vs, false)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Process files if any, then commit.
+
 	out, err := exec.Command("git", "describe", "--contains", head.Hash().String()).Output()
 	if err != nil {
 		return err
@@ -238,8 +235,24 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 
 	dryrun, _ := cmd.Flags().GetBool("dry-run")
 
-	err = doTagging(nextVersion.String(), head.Hash(), dryrun)
-	return err
+	// TODO: Add the v if required.
+	err = doTagging(pvNext.String(), head.Hash(), dryrun)
+	if err != nil {
+		return err
+	}
+
+	if viper.GetBool("always_leave_version_pre") {
+		// TODO: if semver.Major or semver.Minor, make semver.Patch.
+		pvFinal, err := pvNext.IncrementVersion(vs, true)
+		if err != nil {
+			return err
+		}
+
+		// TODO: Finish up here by changing files and committing, adding the v if required.
+		return errors.New("Need to process files to add version " + pvFinal.String())
+	}
+
+	return nil
 }
 
 // askInitialTagging gets the initial tag version and asks whether to cancel.

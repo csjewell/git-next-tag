@@ -78,33 +78,33 @@ func FullVersion() string {
 	return v
 }
 
-func getSpecifiedVersion(flags *pflag.FlagSet, pvCurrent *semver.ParsedVersion) (*semver.ParsedVersion, error) {
+func getVersionSegment(flags *pflag.FlagSet) (semver.VersionSegment, error) {
 	getFlag := func(s string) bool {
 		b, _ := flags.GetBool(s)
 		return b
 	}
 
 	if getFlag("major") {
-		return pvCurrent.IncrementVersion(semver.Major, true)
+		return semver.Major, nil
 	}
 	if getFlag("minor") {
-		return pvCurrent.IncrementVersion(semver.Minor, true)
+		return semver.Minor, nil
 	}
 	if getFlag("patch") {
-		return pvCurrent.IncrementVersion(semver.Patch, true)
+		return semver.Patch, nil
 	}
 	if getFlag("alpha") {
-		return pvCurrent.IncrementVersion(semver.Alpha, true)
+		return semver.Alpha, nil
 	}
 	if getFlag("beta") {
-		return pvCurrent.IncrementVersion(semver.Beta, true)
+		return semver.Beta, nil
 	}
 	if getFlag("gamma") {
-		return pvCurrent.IncrementVersion(semver.Gamma, true)
+		return semver.Gamma, nil
 	}
 	if getFlag("rc") {
-		return pvCurrent.IncrementVersion(semver.RC, true)
+		return semver.RC, nil
 	}
 
-	return nil, errors.New("Did not specify how to upgrade the version")
+	return semver.NonSegment, errors.New("Did not specify how to upgrade the version")
 }

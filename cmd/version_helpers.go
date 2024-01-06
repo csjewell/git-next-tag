@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Curtis Jewell <golang@curtisjewell.name>
+Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -85,25 +85,25 @@ func getSpecifiedVersion(flags *pflag.FlagSet, pvCurrent *semver.ParsedVersion) 
 	}
 
 	if getFlag("major") {
-		return pvCurrent.IncrementVersion(semver.Major)
+		return pvCurrent.IncrementVersion(semver.Major, true)
 	}
 	if getFlag("minor") {
-		return pvCurrent.IncrementVersion(semver.Minor)
+		return pvCurrent.IncrementVersion(semver.Minor, true)
 	}
 	if getFlag("patch") {
-		return pvCurrent.IncrementVersion(semver.Patch)
+		return pvCurrent.IncrementVersion(semver.Patch, true)
 	}
 	if getFlag("alpha") {
-		return pvCurrent.IncrementVersion(semver.Alpha)
+		return pvCurrent.IncrementVersion(semver.Alpha, true)
 	}
 	if getFlag("beta") {
-		return pvCurrent.IncrementVersion(semver.Beta)
+		return pvCurrent.IncrementVersion(semver.Beta, true)
 	}
 	if getFlag("gamma") {
-		return pvCurrent.IncrementVersion(semver.Gamma)
+		return pvCurrent.IncrementVersion(semver.Gamma, true)
 	}
 	if getFlag("rc") {
-		return pvCurrent.IncrementVersion(semver.RC)
+		return pvCurrent.IncrementVersion(semver.RC, true)
 	}
 
 	return nil, errors.New("Did not specify how to upgrade the version")

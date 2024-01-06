@@ -1,9 +1,69 @@
 linters:
   enable:
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gci
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocognit
+    - goconst
+    #- gocritic
+    - godot
+    - godox
+    #- goerr113
+    - gofmt
+    - gofumpt
+    #- goheader
+    - goimports
+    - gomoddirectives
+    - gosec
+    - gosmopolitan
+    - inamedparam
+    - interfacebloat
+    - lll
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - reassign
     - revive
+    - sloglint
+    - tenv
+    - testableexamples
+    - testifylint
+    - thelper
+    - tparallel
+    - unconvert
+    - usestdlibvars
+    - varnamelen
+    - wastedassign
   disable:
     - unused
 linters-settings:
+  exhaustive:
+    default-signifies-exhaustive: true
   revive:
     severity: warning
     enable-all-rules: true

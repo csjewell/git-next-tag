@@ -48,7 +48,7 @@ var rootCmd = &cobra.Command{
 	Use:                        "git-next-tag",
 	Version:                    FullVersion(),
 	Short:                      "Commit the next tag.",
-	Long:                       `git next-tag: Update and commit the next tag/version of a git repository`,
+	Long:                       `Update and commit the next tag/version of a git repository`,
 	SilenceUsage:               true,
 	PreRunE:                    func(cmd *cobra.Command, args []string) error { return initConfig() },
 	RunE:                       func(cmd *cobra.Command, args []string) error { return nextTag(cmd, args) },
@@ -120,6 +120,7 @@ func initConfig() error {
 }
 
 func askConfig() error {
+	// TODO: Make this dependent on whether we have it set from a file.
 	b, err := askBoolean("Do you want to have an initial v on your versions?", true)
 	if err != nil {
 		return err
@@ -173,55 +174,66 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	head, err := repo.Reference(plumbing.HEAD, true)
-	if err != nil {
-		return err
-	}
-
 	tags, err := retrieveTags()
 	if err != nil {
 		return err
 	}
 
+	var (
+		vs     semver.VersionSegment
+		pvNext *semver.ParsedVersion
+		vNext  string
+	)
+
+	// Get next version based on previous one, if a previous one exists.
+	// Otherwise, set to 0.1.0
 	if len(tags) == 0 {
-		initialTag, err := askInitialTagging()
+		vNext, err = askInitialTagging()
 		if err != nil {
 			return err
 		}
 
-		dryrun, _ := cmd.Flags().GetBool("dry-run")
+		pvNext = semver.ParseVersion(vNext)
+		vs = semver.Patch
+	} else {
+		tagVersions := make([]*semver.ParsedVersion, len(tags))
+		for k := range tags {
+			pv := semver.ParseVersion(k)
+			tagVersions = append(tagVersions, pv)
+		}
 
-		// TODO: save files, commit, tag, save files, commit.
-		return doTagging(initialTag, head.Hash(), dryrun)
+		sort.Sort(semver.ParsedVersionSlice(tagVersions))
+
+		// To turn the slice around so that the greatest versions are first
+		slices.Reverse(tagVersions)
+
+		pvCurrent := tagVersions[0]
+		vCurrent := pvCurrent.String()
+		slog.Debug("Current tag: " + normalizeVersion(vCurrent))
+
+		vs, err = getVersionSegment(cmd.Flags())
+		if err != nil {
+			return err
+		}
+
+		pvNext, err = pvCurrent.IncrementVersion(vs, false)
+		if err != nil {
+			return err
+		}
+		vNext = normalizeVersion(pvNext.String())
 	}
 
-	tagVersions := make([]*semver.ParsedVersion, len(tags))
-	for k := range tags {
-		pv := semver.ParseVersion(k)
-		tagVersions = append(tagVersions, pv)
-	}
-
-	sort.Sort(semver.ParsedVersionSlice(tagVersions))
-
-	// To turn the slice around so that the greatest versions are first
-	slices.Reverse(tagVersions)
-
-	pvCurrent := tagVersions[0]
-	vCurrent := pvCurrent.String()
-	// TODO: Add the v if required.
-	slog.Debug("Current version: " + vCurrent)
-
-	vs, err := getVersionSegment(cmd.Flags())
+	dryrun, _ := cmd.Flags().GetBool("dry-run")
+	filesToProcess := viper.GetStringSlice("version_files")
+	err = updateFiles(vNext, filesToProcess, dryrun)
 	if err != nil {
 		return err
 	}
 
-	pvNext, err := pvCurrent.IncrementVersion(vs, false)
+	head, err := repo.Reference(plumbing.HEAD, true)
 	if err != nil {
 		return err
 	}
-
-	// TODO: Process files if any, then commit.
 
 	out, err := exec.Command("git", "describe", "--contains", head.Hash().String()).Output()
 	if err != nil {
@@ -233,37 +245,46 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("Repository is already tagged with %s and no more commits have been made", possibleTag)
 	}
 
-	dryrun, _ := cmd.Flags().GetBool("dry-run")
-
-	// TODO: Add the v if required.
-	err = doTagging(pvNext.String(), head.Hash(), dryrun)
+	err = doTagging(vNext, head.Hash(), dryrun)
 	if err != nil {
 		return err
 	}
 
 	if viper.GetBool("always_leave_version_pre") {
-		// TODO: if semver.Major or semver.Minor, make semver.Patch.
-		pvFinal, err := pvNext.IncrementVersion(vs, true)
+		var vsNext semver.VersionSegment
+		switch vs {
+		case semver.Major, semver.Minor:
+			vsNext = semver.Patch
+		default:
+			vsNext = vs
+		}
+
+		pvFinal, err := pvNext.IncrementVersion(vsNext, true)
 		if err != nil {
 			return err
 		}
+		vFinal := normalizeVersion(pvFinal.String())
 
-		// TODO: Finish up here by changing files and committing, adding the v if required.
-		return errors.New("Need to process files to add version " + pvFinal.String())
+		err = updateFiles(vFinal, filesToProcess, dryrun)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// askInitialTagging gets the initial tag version and asks whether to cancel.
-func askInitialTagging() (string, error) {
-	var versionInitial string
+func normalizeVersion(s string) string {
 	initialV := viper.GetBool("initial_v")
 	if initialV {
-		versionInitial = "v0.1.0"
-	} else {
-		versionInitial = "0.1.0"
+		return "v" + s
 	}
+	return s
+}
+
+// askInitialTagging gets the initial tag version and asks whether to cancel.
+func askInitialTagging() (string, error) {
+	versionInitial := normalizeVersion("0.1.0")
 
 	menu := promptui.Select{
 		Label:     "Create initial tag to version " + versionInitial,
@@ -280,11 +301,4 @@ func askInitialTagging() (string, error) {
 	}
 
 	return versionInitial, nil
-}
-
-// This is my 'TODO' area of functions I think I'll need soon.
-//
-//revive:disable:unused-parameter
-func checkForNewVersion(fileName string, newVersion string) error {
-	return errors.New("checkForNewVersion not implemented yet")
 }

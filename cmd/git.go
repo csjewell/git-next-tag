@@ -72,15 +72,10 @@ func retrieveTags() (map[string]*object.Tag, error) {
 
 	if err := iter.ForEach(func(ref *plumbing.Reference) error {
 		obj, err := repo.TagObject(ref.Hash())
-		switch err {
-		case nil:
-			tags[obj.Name] = obj
-		case plumbing.ErrObjectNotFound:
-			// Not a tag object
-		default:
-			// Some other error
+		if err != nil {
 			return err
 		}
+		tags[obj.Name] = obj
 		return nil
 	}); err != nil {
 		return nil, err
@@ -130,13 +125,42 @@ func doTagging(tag string, head plumbing.Hash, dryrun bool) error {
 	return nil
 }
 
-// This is my 'TODO' area of functions I think I'll need soon.
-//
-//revive:disable:unused-parameter
-func getRecommendedVersion(tag *object.Tag) error {
-	// headRef, err := repo.Reference(plumbing.HEAD, true)
+func updateFiles(version string, filesToProcess []string, dryrun bool) error {
+	if dryrun {
+		return nil
+	}
 
-	// initialCommit, err := tag.Commit()
+	wt, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
 
-	return fmt.Errorf("getRecommendedVersion not implemented yet")
+	for _, file := range filesToProcess {
+		err = replaceInFile(file, version)
+		if err != nil {
+			return err
+		}
+
+		_, err = wt.Add(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(filesToProcess) != 0 {
+		_, err = wt.Commit("chore: Updating version to "+version, &git.CommitOptions{
+			Amend:             false,
+			All:               false,
+			AllowEmptyCommits: false,
+			Author:            nil,
+			Committer:         nil,
+			SignKey:           nil,
+			Parents:           []plumbing.Hash{},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

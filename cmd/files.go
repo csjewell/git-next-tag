@@ -76,7 +76,7 @@ var Version = func() string { return "v0.1.0-pre" }()
 `
 
 	//revive:disable:add-constant
-	err := os.WriteFile(fileName, []byte(versionFile), 0644)
+	err := os.WriteFile(fileName, []byte(versionFile), 0o644)
 	//revive:enable:add-constant
 	if err != nil {
 		return fmt.Errorf("Could not write to file %s: %w", fileName, err)

@@ -256,11 +256,10 @@ func checkAlreadyTagged() (*plumbing.Reference, error) {
 		return nil, err
 	}
 
+	// We expect errors to happen on this run.
+	// TODO: Make it JUST "Error code 128" we ignore.
 	headHash := head.Hash().String()
-	out, err := exec.Command("git", "describe", "--contains", headHash).Output()
-	if err != nil {
-		return nil, err
-	}
+	out, _ := exec.Command("git", "describe", "--contains", headHash).Output()
 
 	possibleTag := string(out)
 	if possibleTag != "" {

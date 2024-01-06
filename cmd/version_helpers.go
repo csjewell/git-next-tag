@@ -20,7 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-// Package cmd implements the CLI structure of git-next-tag.
 package cmd
 
 import (
@@ -33,6 +32,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// GetParsedVersion returnes the parsed version.
 func GetParsedVersion() *semver.ParsedVersion { return semver.ParseVersion(Version) }
 
 // From https://icinga.com/blog/2022/05/25/embedding-git-commit-information-in-go-binaries/,
@@ -40,7 +40,7 @@ func GetParsedVersion() *semver.ParsedVersion { return semver.ParseVersion(Versi
 
 // commit is the commit hash
 // uncommitted is whether there were other uncommitted or unknown changes when built
-// FullCommit is the full commit string.
+// fullCommit is the full commit string.
 var commit, uncommitted, fullCommit = func() (string, bool, string) {
 	commit := ""
 	modified := false

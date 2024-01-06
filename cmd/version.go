@@ -1,4 +1,3 @@
-// Package cmd implements the CLI structure of git-next-tag.
 package cmd
 
 // Version is the current version of the library or command

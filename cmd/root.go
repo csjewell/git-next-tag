@@ -42,10 +42,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	// cfgFile string
-	repo *git.Repository
-)
+var repo *git.Repository
 
 var rootCmd = &cobra.Command{
 	Use:                        "git next-tag",
@@ -58,6 +55,7 @@ var rootCmd = &cobra.Command{
 	SuggestionsMinimumDistance: 5,
 }
 
+// Execute runs the git-next-tag command
 func Execute() error {
 	return rootCmd.Execute()
 }

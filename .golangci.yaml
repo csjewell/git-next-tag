@@ -12,6 +12,8 @@ linters-settings:
         disabled: true
       - name: cognitive-complexity
         disabled: true
+      - name: flag-parameter
+        disabled: true
       - name: function-length
         disabled: true
       - name: line-length-limit

@@ -90,11 +90,7 @@ func retrieveTags() (map[string]*object.Tag, error) {
 }
 
 // doTagging applies a new tag to the repository and pushes to all remotes.
-//
-//revive:disable:flag-parameter
 func doTagging(tag string, head plumbing.Hash, dryrun bool) error {
-	//revive:enable:flag-parameter
-
 	prompt := promptui.Prompt{
 		Label:     fmt.Sprintf("Creating tag for version %s. Continue?", tag),
 		IsConfirm: true,

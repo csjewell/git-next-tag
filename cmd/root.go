@@ -45,10 +45,10 @@ import (
 var repo *git.Repository
 
 var rootCmd = &cobra.Command{
-	Use:                        "git next-tag",
+	Use:                        "git-next-tag",
 	Version:                    FullVersion(),
 	Short:                      "Commit the next tag.",
-	Long:                       `...`,
+	Long:                       `git next-tag: Update and commit the next tag/version of a git repository`,
 	SilenceUsage:               true,
 	PreRunE:                    func(cmd *cobra.Command, args []string) error { return initConfig() },
 	RunE:                       func(cmd *cobra.Command, args []string) error { return nextTag(cmd, args) },
@@ -145,11 +145,7 @@ func askConfig() error {
 }
 
 // askBoolean asks a boolean question.
-//
-//revive:disable:flag-parameter
 func askBoolean(s string, def bool) (bool, error) {
-	//revive:flag-parameter:enable
-
 	pos := 1
 	if def {
 		pos = 0

@@ -1,5 +1,5 @@
 /*
-Copyright © 2023,2024 Curtis Jewell <golang@curtisjewell.name>
+Copyright © 2024 Curtis Jewell <golang@curtisjewell.name>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,11 @@ THE SOFTWARE.
 package semver_test
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/csjewell/git-next-tag/semver"
-	// "github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParseVersion(t *testing.T) {
@@ -90,17 +91,17 @@ func TestIncrementVersion(t *testing.T) {
 		err    error
 	)
 
-	_, err = pv.IncrementVersion(semver.None)
+	_, err = pv.IncrementVersion(semver.NonSegment, false)
 	if err == nil {
 		t.Error("Did not get error when expected")
 	}
 
-	_, err = pv.IncrementVersion(semver.Alpha)
+	_, err = pv.IncrementVersion(semver.Alpha, false)
 	if err == nil {
 		t.Error("Did not get error when expected")
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Beta)
+	pvResp, err = pv.IncrementVersion(semver.Beta, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -108,7 +109,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.2.3-beta.3, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Gamma)
+	pvResp, err = pv.IncrementVersion(semver.Gamma, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -116,7 +117,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.2.3-gamma.1, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.RC)
+	pvResp, err = pv.IncrementVersion(semver.RC, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -124,7 +125,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.2.3-rc.1, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Patch)
+	pvResp, err = pv.IncrementVersion(semver.Patch, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -132,7 +133,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.2.4, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Minor)
+	pvResp, err = pv.IncrementVersion(semver.Minor, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -140,7 +141,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.3.0, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Major)
+	pvResp, err = pv.IncrementVersion(semver.Major, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}
@@ -149,14 +150,6 @@ func TestIncrementVersion(t *testing.T) {
 	}
 }
 
-/*
-  Right now, this panics:
-
-  panic: cannot handle unexported field at {[]*semver.ParsedVersion}[0].major:
-	"github.com/csjewell/git-next-tag/semver".ParsedVersion
-consider using cmpopts.EquateComparable to compare comparable Go types
-
-/*
 func TestSorting(t *testing.T) {
 	versions := []string{
 		"0.2.0",
@@ -172,11 +165,11 @@ func TestSorting(t *testing.T) {
 	}
 
 	expected := []*semver.ParsedVersion{
-		semver.ParseVersion("0.1.0-pre"),
 		semver.ParseVersion("0.1.0-alpha.1"),
 		semver.ParseVersion("0.1.0-beta.1"),
 		semver.ParseVersion("0.1.0-gamma.1-pre"),
 		semver.ParseVersion("0.1.0-gamma.1"),
+		semver.ParseVersion("0.1.0-pre"),
 		semver.ParseVersion("0.1.0"),
 		semver.ParseVersion("0.1.1"),
 		semver.ParseVersion("0.2.0"),
@@ -190,8 +183,9 @@ func TestSorting(t *testing.T) {
 	}
 
 	sort.Sort(semver.ParsedVersionSlice(versionsParsed))
-	if diff := cmp.Diff(expected, versionsParsed); diff != "" {
+
+	o := cmp.Comparer(func(x, y *semver.ParsedVersion) bool { return x.String() == y.String() })
+	if diff := cmp.Diff(expected, versionsParsed, o); diff != "" {
 		t.Error(diff)
 	}
 }
-*/

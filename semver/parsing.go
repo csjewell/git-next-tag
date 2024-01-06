@@ -1,5 +1,5 @@
 /*
-Copyright © 2023,2024 Curtis Jewell <golang@curtisjewell.name>
+Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,12 +31,14 @@ import (
 	"strings"
 )
 
+// Regexp is a regexp.Regexp that finds any possible version string within a line.
 var Regexp = func() *regexp.Regexp {
 	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?`)
 	return rx
 }()
 
-var RegexpOnly = func() *regexp.Regexp {
+// RegexpString is a regexp.Regexp that validates a version string.
+var RegexpString = func() *regexp.Regexp {
 	rx, _ := regexp.Compile(`\Av?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?\z`)
 	return rx
 }()
@@ -45,7 +47,7 @@ var RegexpOnly = func() *regexp.Regexp {
 type VersionSegment int
 
 const (
-	None VersionSegment = iota
+	NonSegment VersionSegment = iota
 	Major
 	Minor
 	Patch
@@ -58,7 +60,9 @@ const (
 
 var vsName = []string{"", "major", "minor", "patch", "alpha", "beta", "gamma", "rc", "pre"}
 
-// String is provided in order to satisfy the fmt.Stringer interface.
+// String is provided in order for VersionSegment to satisfy the fmt.Stringer interface.
+//
+// This way, VersionSegment variables can be printed in fmt.Print and friends.
 func (vs VersionSegment) String() string {
 	return vsName[vs]
 }
@@ -74,8 +78,10 @@ type ParsedVersion struct {
 }
 
 // ParseVersion attempts to parse a version string.
+//
+// It returns nil if the result is unparseable.
 func ParseVersion(v string) *ParsedVersion {
-	matches := RegexpOnly.FindStringSubmatch(v)
+	matches := RegexpString.FindStringSubmatch(v)
 	if len(matches) == 0 {
 		return nil
 	}
@@ -107,9 +113,11 @@ func ParseVersion(v string) *ParsedVersion {
 }
 
 // String is provided in order to satisfy the fmt.Stringer interface.
+//
+// This way, ParsedVersion variables can be printed in fmt.Print and friends.
 func (pv ParsedVersion) String() string {
 	s := fmt.Sprint(pv.major, ".", pv.minor, ".", pv.patch)
-	if pv.lowerCategory != None {
+	if pv.lowerCategory != NonSegment {
 		s += fmt.Sprint("-", pv.lowerCategory, ".", pv.lower)
 	}
 	if pv.isPre {
@@ -118,7 +126,10 @@ func (pv ParsedVersion) String() string {
 	return s
 }
 
-func (pv ParsedVersion) IncrementVersion(vs VersionSegment) (*ParsedVersion, error) {
+// IncrementVersion ...
+//
+// If incrementing on the VersionSegment requested is impossible, an error is returned.
+func (pv ParsedVersion) IncrementVersion(vs VersionSegment, isPre bool) (*ParsedVersion, error) {
 	var pvNext ParsedVersion
 	switch vs {
 	case Major:
@@ -127,8 +138,8 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment) (*ParsedVersion, err
 			minor:         0,
 			patch:         0,
 			lower:         0,
-			lowerCategory: None,
-			isPre:         false,
+			lowerCategory: NonSegment,
+			isPre:         isPre,
 		}
 		return &pvNext, nil
 	case Minor:
@@ -137,8 +148,8 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment) (*ParsedVersion, err
 			minor:         pv.minor + 1,
 			patch:         0,
 			lower:         0,
-			lowerCategory: None,
-			isPre:         false,
+			lowerCategory: NonSegment,
+			isPre:         isPre,
 		}
 		return &pvNext, nil
 	case Patch:
@@ -147,26 +158,39 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment) (*ParsedVersion, err
 			minor:         pv.minor,
 			patch:         pv.patch + 1,
 			lower:         0,
-			lowerCategory: None,
-			isPre:         false,
+			lowerCategory: NonSegment,
+			isPre:         isPre,
 		}
 		return &pvNext, nil
 	case Alpha, Beta, Gamma, RC:
-		return pv.lowerOK(vs)
-	case None:
+		return pv.lowerOK(vs, isPre)
+	case Pre:
+		if !pv.isPre {
+			return nil, fmt.Errorf("Cannot upgrade non-prerelease version %s to non-prerelease", pv)
+		}
+		pvNext = ParsedVersion{
+			major:         pv.major,
+			minor:         pv.minor,
+			patch:         pv.patch,
+			lower:         pv.lower,
+			lowerCategory: pv.lowerCategory,
+			isPre:         isPre,
+		}
+		return &pvNext, nil
+	case NonSegment:
 		return nil, errors.New("Did not specify how to upgrade the version")
 	}
 	return nil, errors.New("Did not specify how to upgrade the version")
 }
 
 var lowerMap = map[VersionSegment]map[VersionSegment]int{
-	Alpha: {None: 1, Alpha: 1, Beta: 0, Gamma: 0, RC: 0},
-	Beta:  {None: 1, Alpha: 2, Beta: 1, Gamma: 0, RC: 0},
-	Gamma: {None: 1, Alpha: 2, Beta: 2, Gamma: 1, RC: 0},
-	RC:    {None: 1, Alpha: 2, Beta: 2, Gamma: 2, RC: 1},
+	Alpha: {NonSegment: 1, Alpha: 1, Beta: 0, Gamma: 0, RC: 0},
+	Beta:  {NonSegment: 1, Alpha: 2, Beta: 1, Gamma: 0, RC: 0},
+	Gamma: {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 1, RC: 0},
+	RC:    {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 2, RC: 1},
 }
 
-func (pv ParsedVersion) lowerOK(seg VersionSegment) (*ParsedVersion, error) {
+func (pv ParsedVersion) lowerOK(seg VersionSegment, isPre bool) (*ParsedVersion, error) {
 	i := lowerMap[seg][pv.lowerCategory]
 	if i == 0 {
 		return nil, errors.New("Cannot create an " + seg.String() + " version if the current version is already a(n) " + pv.lowerCategory.String() + " one")
@@ -178,7 +202,7 @@ func (pv ParsedVersion) lowerOK(seg VersionSegment) (*ParsedVersion, error) {
 			patch:         pv.patch,
 			lower:         pv.lower + 1,
 			lowerCategory: seg,
-			isPre:         false,
+			isPre:         isPre,
 		}
 		return &pvNext, nil
 	}
@@ -196,7 +220,19 @@ func (pv ParsedVersion) lowerOK(seg VersionSegment) (*ParsedVersion, error) {
 	panic("should not get here")
 }
 
-// ParsedVersionSlice is used to implement sort.Interface for a slice of *ParsedVersion
+// ParsedVersionSlice is defined in order to make slices of ParsedVersion sortable using sort.Sort
+// (because ParsedVersionSlice implements sort.Interface.)
+//
+// Example:
+//
+//	pvs = []*semver.ParsedVersion{
+//		semver.ParseVersion("0.2.0-pre"),
+//		semver.ParseVersion("0.2.0"),
+//		semver.ParseVersion("0.1.0"),
+//	}
+//
+//	sort.Sort(ParsedVersionSlice(pvs))
+//	// { semver.ParseVersion("0.1.0"), semver.ParseVersion("0.2.0-pre"), semver.ParseVersion("0.2.0") }
 type ParsedVersionSlice []*ParsedVersion
 
 func (s ParsedVersionSlice) Len() int { return len(s) }
@@ -235,6 +271,13 @@ func (s ParsedVersionSlice) Less(i, j int) bool {
 		return false
 	}
 
+	if tvi.lowerCategory == NonSegment && tvj.lowerCategory != NonSegment {
+		return false
+	}
+	if tvi.lowerCategory != NonSegment && tvj.lowerCategory == NonSegment {
+		return true
+	}
+
 	if tvi.lowerCategory < tvj.lowerCategory {
 		return true
 	}
@@ -252,5 +295,9 @@ func (s ParsedVersionSlice) Less(i, j int) bool {
 	if tvi.isPre && !tvj.isPre {
 		return true
 	}
+	if !tvi.isPre && tvj.isPre {
+		return false
+	}
+
 	return false
 }

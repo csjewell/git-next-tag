@@ -210,24 +210,38 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 	}
 
 	if viper.GetBool("always_leave_version_pre") {
-		var vsNext semver.VersionSegment
-		switch vsIncrement {
-		case semver.Major, semver.Minor:
-			vsNext = semver.Patch
-		default:
-			vsNext = vsIncrement
-		}
-
-		pvFinal, err := pvNext.IncrementVersion(vsNext, true)
+		err := afterTag(vsIncrement, pvNext, filesToProcess, dryrun)
 		if err != nil {
 			return err
 		}
-		vFinal := normalizeVersion(pvFinal.String())
+	}
 
-		err = updateFiles(vFinal, filesToProcess, dryrun)
-		if err != nil {
-			return err
-		}
+	return nil
+}
+
+func afterTag(
+	vsIncrement semver.VersionSegment,
+	pvNext *semver.ParsedVersion,
+	filesToProcess []string,
+	dryrun bool,
+) error {
+	var vsNext semver.VersionSegment
+	switch vsIncrement {
+	case semver.Major, semver.Minor:
+		vsNext = semver.Patch
+	default:
+		vsNext = vsIncrement
+	}
+
+	pvFinal, err := pvNext.IncrementVersion(vsNext, true)
+	if err != nil {
+		return err
+	}
+	vFinal := normalizeVersion(pvFinal.String())
+
+	err = updateFiles(vFinal, filesToProcess, dryrun)
+	if err != nil {
+		return err
 	}
 
 	return nil

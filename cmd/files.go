@@ -1,5 +1,6 @@
 /*
 Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
+SPDX-License-Identifier: MIT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -41,25 +42,26 @@ func replaceInFile(fileName, newVersion string) error {
 	if err != nil {
 		return fmt.Errorf("Could not get information about file %s: %w", fileName, err)
 	}
+	perm := fi.Mode().Perm()
 
 	lines := strings.Split(string(input), "\n")
 
-	for i, line := range lines {
+	for iLine, line := range lines {
 		finds := semver.Regexp.FindAllString(line, -1)
 		finds = slices.Compact(finds)
 		if len(finds) != 0 {
 			for _, find := range finds {
 				if find != newVersion {
-					line = strings.Replace(line, find, newVersion, -1)
+					line = strings.ReplaceAll(line, find, newVersion)
 				}
 			}
 
-			lines[i] = line
+			lines[iLine] = line
 		}
 	}
 
 	output := strings.Join(lines, "\n")
-	err = os.WriteFile(fileName, []byte(output), fi.Mode().Perm())
+	err = os.WriteFile(fileName, []byte(output), perm)
 	if err != nil {
 		return fmt.Errorf("Could not write to file %s: %w", fileName, err)
 	}
@@ -71,12 +73,12 @@ func createVersionDotGoFile(pkg, fileName string) error {
 	versionFile := `
 package ` + pkg + `
 
-// Version is the current version of the library or command
+// Version is the current version of the library or command.
 var Version = func() string { return "v0.1.0-pre" }()
 `
 
 	//revive:disable:add-constant
-	err := os.WriteFile(fileName, []byte(versionFile), 0o644)
+	err := os.WriteFile(fileName, []byte(versionFile), 0o600)
 	//revive:enable:add-constant
 	if err != nil {
 		return fmt.Errorf("Could not write to file %s: %w", fileName, err)

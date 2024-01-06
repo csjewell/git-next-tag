@@ -1,5 +1,6 @@
 /*
 Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
+SPDX-License-Identifier: MIT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -60,7 +61,7 @@ func isTreeClean() error {
 	return nil
 }
 
-// retrieveTags retrieves all tags in the current repository
+// retrieveTags retrieves all tags in the current repository.
 func retrieveTags() (map[string]*object.Tag, error) {
 	tags := make(map[string]*object.Tag)
 
@@ -130,7 +131,7 @@ func updateFiles(version string, filesToProcess []string, dryrun bool) error {
 		return nil
 	}
 
-	wt, err := repo.Worktree()
+	worktree, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
@@ -141,14 +142,14 @@ func updateFiles(version string, filesToProcess []string, dryrun bool) error {
 			return err
 		}
 
-		_, err = wt.Add(file)
+		_, err = worktree.Add(file)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(filesToProcess) != 0 {
-		_, err = wt.Commit("chore: Updating version to "+version, &git.CommitOptions{
+		_, err = worktree.Commit("chore: Updating version to "+version, &git.CommitOptions{
 			Amend:             false,
 			All:               false,
 			AllowEmptyCommits: false,

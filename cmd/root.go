@@ -1,5 +1,6 @@
 /*
 Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
+SPDX-License-Identifier: MIT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -51,11 +52,11 @@ var rootCmd = &cobra.Command{
 	Long:                       `Update and commit the next tag/version of a git repository`,
 	SilenceUsage:               true,
 	PreRunE:                    func(cmd *cobra.Command, args []string) error { return initConfig() },
-	RunE:                       func(cmd *cobra.Command, args []string) error { return nextTag(cmd, args) },
+	RunE:                       nextTag,
 	SuggestionsMinimumDistance: 5,
 }
 
-// Execute runs the git-next-tag command
+// Execute runs the git-next-tag command.
 func Execute() error {
 	return rootCmd.Execute()
 }
@@ -90,7 +91,11 @@ func initConfig() error {
 	}
 
 	// The return from Root() includes the .git directory, so shake it off.
-	gitDir = path.Dir(repo.Storer.(*filesystem.Storage).Filesystem().Root())
+	storage, ok := repo.Storer.(*filesystem.Storage)
+	if !ok {
+		return errors.New("git not running on a filesystem?")
+	}
+	gitDir = path.Dir(storage.Filesystem().Root())
 
 	// Search config in git root directory with name ".git-next-tag" (without extension).
 	viper.AddConfigPath(gitDir)
@@ -121,23 +126,23 @@ func initConfig() error {
 
 func askConfig() error {
 	// TODO: Make this dependent on whether we have it set from a file.
-	b, err := askBoolean("Do you want to have an initial v on your versions?", true)
+	bAnswer, err := askBoolean("Do you want to have an initial v on your versions?", true)
 	if err != nil {
 		return err
 	}
-	viper.Set("initial_v", b)
+	viper.Set("initial_v", bAnswer)
 
-	b, err = askBoolean("Do you want to have annotated tags in your git repository?", false)
+	bAnswer, err = askBoolean("Do you want to have annotated tags in your git repository?", false)
 	if err != nil {
 		return err
 	}
-	viper.Set("tag_annotated", b)
+	viper.Set("tag_annotated", bAnswer)
 
-	b, err = askBoolean("Do you want to have any non-tagged version marked as a prerelease?", true)
+	bAnswer, err = askBoolean("Do you want to have any non-tagged version marked as a prerelease?", true)
 	if err != nil {
 		return err
 	}
-	viper.Set("always_leave_version_pre", b)
+	viper.Set("always_leave_version_pre", bAnswer)
 
 	// TODO: version_files
 	// viper.Set("version_files", []string{})
@@ -146,13 +151,13 @@ func askConfig() error {
 }
 
 // askBoolean asks a boolean question.
-func askBoolean(s string, def bool) (bool, error) {
+func askBoolean(sQuestion string, def bool) (bool, error) {
 	pos := 1
 	if def {
 		pos = 0
 	}
 	menu := promptui.Select{
-		Label:     s,
+		Label:     sQuestion,
 		CursorPos: pos,
 		Items:     []string{"Yes", "No"},
 	}
@@ -180,9 +185,9 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 	}
 
 	var (
-		vs     semver.VersionSegment
-		pvNext *semver.ParsedVersion
-		vNext  string
+		vsIncrement semver.VersionSegment
+		pvNext      *semver.ParsedVersion
+		vNext       string
 	)
 
 	// Get next version based on previous one, if a previous one exists.
@@ -194,9 +199,9 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		}
 
 		pvNext = semver.ParseVersion(vNext)
-		vs = semver.Patch
+		vsIncrement = semver.Patch
 	} else {
-		tagVersions := make([]*semver.ParsedVersion, len(tags))
+		tagVersions := make([]*semver.ParsedVersion, 0, len(tags))
 		for k := range tags {
 			pv := semver.ParseVersion(k)
 			tagVersions = append(tagVersions, pv)
@@ -211,12 +216,12 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		vCurrent := pvCurrent.String()
 		slog.Debug("Current tag: " + normalizeVersion(vCurrent))
 
-		vs, err = getVersionSegment(cmd.Flags())
+		vsIncrement, err = getVersionSegment(cmd.Flags())
 		if err != nil {
 			return err
 		}
 
-		pvNext, err = pvCurrent.IncrementVersion(vs, false)
+		pvNext, err = pvCurrent.IncrementVersion(vsIncrement, false)
 		if err != nil {
 			return err
 		}
@@ -235,7 +240,8 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	out, err := exec.Command("git", "describe", "--contains", head.Hash().String()).Output()
+	headHash := head.Hash().String()
+	out, err := exec.Command("git", "describe", "--contains", headHash).Output()
 	if err != nil {
 		return err
 	}
@@ -252,11 +258,11 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 
 	if viper.GetBool("always_leave_version_pre") {
 		var vsNext semver.VersionSegment
-		switch vs {
+		switch vsIncrement {
 		case semver.Major, semver.Minor:
 			vsNext = semver.Patch
 		default:
-			vsNext = vs
+			vsNext = vsIncrement
 		}
 
 		pvFinal, err := pvNext.IncrementVersion(vsNext, true)

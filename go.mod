@@ -3,7 +3,7 @@ module github.com/csjewell/git-next-tag
 go 1.21.5
 
 require (
-	github.com/csjewell/git-next-tag/semver v0.0.0-20240104045542-9103a542dd48
+	github.com/csjewell/git-next-tag/semver v0.0.0-20240106015616-69b244cd9117
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/spf13/cobra v1.8.0
@@ -45,7 +45,7 @@ require (
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

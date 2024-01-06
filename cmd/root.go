@@ -37,6 +37,7 @@ import (
 	"github.com/csjewell/git-next-tag/semver"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -184,49 +185,12 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	var (
-		vsIncrement semver.VersionSegment
-		pvNext      *semver.ParsedVersion
-		vNext       string
-	)
-
-	// Get next version based on previous one, if a previous one exists.
-	// Otherwise, set to 0.1.0
-	if len(tags) == 0 {
-		vNext, err = askInitialTagging()
-		if err != nil {
-			return err
-		}
-
-		pvNext = semver.ParseVersion(vNext)
-		vsIncrement = semver.Patch
-	} else {
-		tagVersions := make([]*semver.ParsedVersion, 0, len(tags))
-		for k := range tags {
-			pv := semver.ParseVersion(k)
-			tagVersions = append(tagVersions, pv)
-		}
-
-		sort.Sort(semver.ParsedVersionSlice(tagVersions))
-
-		// To turn the slice around so that the greatest versions are first
-		slices.Reverse(tagVersions)
-
-		pvCurrent := tagVersions[0]
-		vCurrent := pvCurrent.String()
-		slog.Debug("Current tag: " + normalizeVersion(vCurrent))
-
-		vsIncrement, err = getVersionSegment(cmd.Flags())
-		if err != nil {
-			return err
-		}
-
-		pvNext, err = pvCurrent.IncrementVersion(vsIncrement, false)
-		if err != nil {
-			return err
-		}
-		vNext = normalizeVersion(pvNext.String())
+	vsIncrement, pvNext, err := getNextVersion(cmd, tags)
+	if err != nil {
+		return err
 	}
+
+	vNext := normalizeVersion(pvNext.String())
 
 	dryrun, _ := cmd.Flags().GetBool("dry-run")
 	filesToProcess := viper.GetStringSlice("version_files")
@@ -235,20 +199,9 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	head, err := repo.Reference(plumbing.HEAD, true)
+	head, err := checkAlreadyTagged()
 	if err != nil {
 		return err
-	}
-
-	headHash := head.Hash().String()
-	out, err := exec.Command("git", "describe", "--contains", headHash).Output()
-	if err != nil {
-		return err
-	}
-
-	possibleTag := string(out)
-	if possibleTag != "" {
-		return fmt.Errorf("Repository is already tagged with %s and no more commits have been made", possibleTag)
 	}
 
 	err = doTagging(vNext, head.Hash(), dryrun)
@@ -278,6 +231,75 @@ func nextTag(cmd *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+func checkAlreadyTagged() (*plumbing.Reference, error) {
+	head, err := repo.Reference(plumbing.HEAD, true)
+	if err != nil {
+		return nil, err
+	}
+
+	headHash := head.Hash().String()
+	out, err := exec.Command("git", "describe", "--contains", headHash).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	possibleTag := string(out)
+	if possibleTag != "" {
+		return nil, fmt.Errorf("Repository is already tagged with %s and no more commits have been made", possibleTag)
+	}
+
+	return head, nil
+}
+
+// getNextVersion gets the next version based on previous one, if a previous one exists.
+// Otherwise, the "next version" is 0.1.0.
+func getNextVersion(cmd *cobra.Command, tags map[string]*object.Tag) (
+	semver.VersionSegment, *semver.ParsedVersion, error,
+) {
+	var (
+		vsIncrement semver.VersionSegment
+		pvNext      *semver.ParsedVersion
+		err         error
+	)
+
+	if len(tags) == 0 {
+		vNext, err := askInitialTagging()
+		if err != nil {
+			return semver.NonSegment, nil, err
+		}
+
+		pvNext = semver.ParseVersion(vNext)
+		vsIncrement = semver.Patch
+	} else {
+		tagVersions := make([]*semver.ParsedVersion, 0, len(tags))
+		for k := range tags {
+			pv := semver.ParseVersion(k)
+			tagVersions = append(tagVersions, pv)
+		}
+
+		sort.Sort(semver.ParsedVersionSlice(tagVersions))
+
+		// To turn the slice around so that the greatest versions are first
+		slices.Reverse(tagVersions)
+
+		pvCurrent := tagVersions[0]
+		vCurrent := pvCurrent.String()
+		slog.Debug("Current tag: " + normalizeVersion(vCurrent))
+
+		vsIncrement, err = getVersionSegment(cmd.Flags())
+		if err != nil {
+			return semver.NonSegment, nil, err
+		}
+
+		pvNext, err = pvCurrent.IncrementVersion(vsIncrement, false)
+		if err != nil {
+			return semver.NonSegment, nil, err
+		}
+	}
+
+	return vsIncrement, pvNext, err
 }
 
 func normalizeVersion(s string) string {

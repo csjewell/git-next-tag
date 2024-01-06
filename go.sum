@@ -27,6 +27,8 @@ github.com/csjewell/git-next-tag/semver v0.0.0-20240104045542-9103a542dd48 h1:Cn
 github.com/csjewell/git-next-tag/semver v0.0.0-20240104045542-9103a542dd48/go.mod h1:qo18/TSi2JDkQZl10AKsjobnLtrwI3yaUGW8mqQxglY=
 github.com/csjewell/git-next-tag/semver v0.0.0-20240106015616-69b244cd9117 h1:uQBkB07hWoiuNm/EhxtXm6/ainasvv771XxUnVtS5WM=
 github.com/csjewell/git-next-tag/semver v0.0.0-20240106015616-69b244cd9117/go.mod h1:ab4hUpjZdiDPYoBop7wUrcV0jPf/rsv/9PyOwtw8zyY=
+github.com/csjewell/git-next-tag/semver v0.0.0-20240106192500-57c8d1380c44 h1:wgRPadBBhIlK0rjOMmqrStVa0ttnYjV4gu9zOjKn7UE=
+github.com/csjewell/git-next-tag/semver v0.0.0-20240106192500-57c8d1380c44/go.mod h1:ab4hUpjZdiDPYoBop7wUrcV0jPf/rsv/9PyOwtw8zyY=
 github.com/cyphar/filepath-securejoin v0.2.4 h1:Ugdm7cg7i6ZK6x3xDF1oEu1nfkyfH53EtKeQYTC3kyg=
 github.com/cyphar/filepath-securejoin v0.2.4/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

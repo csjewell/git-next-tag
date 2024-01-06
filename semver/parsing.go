@@ -1,5 +1,6 @@
 /*
 Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
+SPDX-License-Identifier: MIT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,14 +34,12 @@ import (
 
 // Regexp is a regexp.Regexp that finds any possible version string within a line.
 var Regexp = func() *regexp.Regexp {
-	rx, _ := regexp.Compile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?`)
-	return rx
+	return regexp.MustCompile(`v?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?`)
 }()
 
 // RegexpString is a regexp.Regexp that validates a version string.
 var RegexpString = func() *regexp.Regexp {
-	rx, _ := regexp.Compile(`\Av?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?\z`)
-	return rx
+	return regexp.MustCompile(`\Av?(\d+)[.](\d+)[.](\d+)(?:-(alpha|beta|gamma|rc)[.](\d+))?(?:[-](pre))?\z`)
 }()
 
 // VersionSegment specifies what segment of the version is being changed.
@@ -54,7 +53,7 @@ const (
 	Alpha
 	Beta
 	Gamma
-	RC
+	RelCand
 	Pre
 )
 
@@ -85,53 +84,53 @@ func ParseVersion(v string) *ParsedVersion {
 	if len(matches) == 0 {
 		return nil
 	}
-	var pv ParsedVersion
+	var pvAmswer ParsedVersion
 	if strings.ToLower(matches[6]) == "pre" {
-		pv.isPre = true
+		pvAmswer.isPre = true
 	}
 	if strings.ToLower(matches[4]) == "alpha" {
-		pv.lower, _ = strconv.Atoi(matches[5])
-		pv.lowerCategory = Alpha
+		pvAmswer.lower, _ = strconv.Atoi(matches[5])
+		pvAmswer.lowerCategory = Alpha
 	}
 	if strings.ToLower(matches[4]) == "beta" {
-		pv.lower, _ = strconv.Atoi(matches[5])
-		pv.lowerCategory = Beta
+		pvAmswer.lower, _ = strconv.Atoi(matches[5])
+		pvAmswer.lowerCategory = Beta
 	}
 	if strings.ToLower(matches[4]) == "gamma" {
-		pv.lower, _ = strconv.Atoi(matches[5])
-		pv.lowerCategory = Gamma
+		pvAmswer.lower, _ = strconv.Atoi(matches[5])
+		pvAmswer.lowerCategory = Gamma
 	}
 	if strings.ToLower(matches[4]) == "rc" {
-		pv.lower, _ = strconv.Atoi(matches[5])
-		pv.lowerCategory = RC
+		pvAmswer.lower, _ = strconv.Atoi(matches[5])
+		pvAmswer.lowerCategory = RelCand
 	}
-	pv.major, _ = strconv.Atoi(matches[1])
-	pv.minor, _ = strconv.Atoi(matches[2])
-	pv.patch, _ = strconv.Atoi(matches[3])
+	pvAmswer.major, _ = strconv.Atoi(matches[1])
+	pvAmswer.minor, _ = strconv.Atoi(matches[2])
+	pvAmswer.patch, _ = strconv.Atoi(matches[3])
 
-	return &pv
+	return &pvAmswer
 }
 
 // String is provided in order to satisfy the fmt.Stringer interface.
 //
 // This way, ParsedVersion variables can be printed in fmt.Print and friends.
 func (pv ParsedVersion) String() string {
-	s := fmt.Sprint(pv.major, ".", pv.minor, ".", pv.patch)
+	version := fmt.Sprint(pv.major, ".", pv.minor, ".", pv.patch)
 	if pv.lowerCategory != NonSegment {
-		s += fmt.Sprint("-", pv.lowerCategory, ".", pv.lower)
+		version += fmt.Sprint("-", pv.lowerCategory, ".", pv.lower)
 	}
 	if pv.isPre {
-		s += "-pre"
+		version += "-pre"
 	}
-	return s
+	return version
 }
 
 // IncrementVersion ...
 //
 // If incrementing on the VersionSegment requested is impossible, an error is returned.
-func (pv ParsedVersion) IncrementVersion(vs VersionSegment, isPre bool) (*ParsedVersion, error) {
+func (pv ParsedVersion) IncrementVersion(vsIncrement VersionSegment, isPre bool) (*ParsedVersion, error) {
 	var pvNext ParsedVersion
-	switch vs {
+	switch vsIncrement {
 	case Major:
 		pvNext = ParsedVersion{
 			major:         pv.major + 1,
@@ -162,8 +161,8 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment, isPre bool) (*Parsed
 			isPre:         isPre,
 		}
 		return &pvNext, nil
-	case Alpha, Beta, Gamma, RC:
-		return pv.lowerOK(vs, isPre)
+	case Alpha, Beta, Gamma, RelCand:
+		return pv.lowerOK(vsIncrement, isPre)
 	case Pre:
 		if !pv.isPre {
 			return nil, fmt.Errorf("Cannot upgrade non-prerelease version %s to non-prerelease", pv)
@@ -184,18 +183,19 @@ func (pv ParsedVersion) IncrementVersion(vs VersionSegment, isPre bool) (*Parsed
 }
 
 var lowerMap = map[VersionSegment]map[VersionSegment]int{
-	Alpha: {NonSegment: 1, Alpha: 1, Beta: 0, Gamma: 0, RC: 0},
-	Beta:  {NonSegment: 1, Alpha: 2, Beta: 1, Gamma: 0, RC: 0},
-	Gamma: {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 1, RC: 0},
-	RC:    {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 2, RC: 1},
+	Alpha:   {NonSegment: 1, Alpha: 1, Beta: 0, Gamma: 0, RelCand: 0},
+	Beta:    {NonSegment: 1, Alpha: 2, Beta: 1, Gamma: 0, RelCand: 0},
+	Gamma:   {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 1, RelCand: 0},
+	RelCand: {NonSegment: 1, Alpha: 2, Beta: 2, Gamma: 2, RelCand: 1},
 }
 
 func (pv ParsedVersion) lowerOK(seg VersionSegment, isPre bool) (*ParsedVersion, error) {
-	i := lowerMap[seg][pv.lowerCategory]
-	if i == 0 {
-		return nil, errors.New("Cannot create an " + seg.String() + " version if the current version is already a(n) " + pv.lowerCategory.String() + " one")
+	checkType := lowerMap[seg][pv.lowerCategory]
+	if checkType == 0 {
+		return nil, fmt.Errorf("Cannot create an %s version if the current version is already a(n) %s one",
+			seg, pv.lowerCategory)
 	}
-	if i == 1 {
+	if checkType == 1 {
 		pvNext := ParsedVersion{
 			major:         pv.major,
 			minor:         pv.minor,
@@ -206,7 +206,7 @@ func (pv ParsedVersion) lowerOK(seg VersionSegment, isPre bool) (*ParsedVersion,
 		}
 		return &pvNext, nil
 	}
-	if i == 2 {
+	if checkType == 2 {
 		pvNext := ParsedVersion{
 			major:         pv.major,
 			minor:         pv.minor,
@@ -239,63 +239,63 @@ func (s ParsedVersionSlice) Len() int { return len(s) }
 
 func (s ParsedVersionSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func (s ParsedVersionSlice) Less(i, j int) bool {
-	tvj := s[j]
-	if tvj == nil {
+func (s ParsedVersionSlice) Less(indexFirst, indexSecond int) bool {
+	pvSecond := s[indexSecond]
+	if pvSecond == nil {
 		return false
 	}
 
-	tvi := s[i]
-	if tvi == nil {
+	pvFirst := s[indexFirst]
+	if pvFirst == nil {
 		return true
 	}
 
-	if tvi.major < tvj.major {
+	if pvFirst.major < pvSecond.major {
 		return true
 	}
-	if tvi.major > tvj.major {
+	if pvFirst.major > pvSecond.major {
 		return false
 	}
 
-	if tvi.minor < tvj.minor {
+	if pvFirst.minor < pvSecond.minor {
 		return true
 	}
-	if tvi.minor > tvj.minor {
+	if pvFirst.minor > pvSecond.minor {
 		return false
 	}
 
-	if tvi.patch < tvj.patch {
+	if pvFirst.patch < pvSecond.patch {
 		return true
 	}
-	if tvi.patch > tvj.patch {
+	if pvFirst.patch > pvSecond.patch {
 		return false
 	}
 
-	if tvi.lowerCategory == NonSegment && tvj.lowerCategory != NonSegment {
+	if pvFirst.lowerCategory == NonSegment && pvSecond.lowerCategory != NonSegment {
 		return false
 	}
-	if tvi.lowerCategory != NonSegment && tvj.lowerCategory == NonSegment {
+	if pvFirst.lowerCategory != NonSegment && pvSecond.lowerCategory == NonSegment {
 		return true
 	}
 
-	if tvi.lowerCategory < tvj.lowerCategory {
+	if pvFirst.lowerCategory < pvSecond.lowerCategory {
 		return true
 	}
-	if tvi.lowerCategory > tvj.lowerCategory {
+	if pvFirst.lowerCategory > pvSecond.lowerCategory {
 		return false
 	}
 
-	if tvi.lower < tvj.lower {
+	if pvFirst.lower < pvSecond.lower {
 		return true
 	}
-	if tvi.lower > tvj.lower {
+	if pvFirst.lower > pvSecond.lower {
 		return false
 	}
 
-	if tvi.isPre && !tvj.isPre {
+	if pvFirst.isPre && !pvSecond.isPre {
 		return true
 	}
-	if !tvi.isPre && tvj.isPre {
+	if !pvFirst.isPre && pvSecond.isPre {
 		return false
 	}
 

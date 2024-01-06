@@ -117,7 +117,7 @@ func TestIncrementVersion(t *testing.T) {
 		t.Error("Did not get 1.2.3-gamma.1, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.RC, false)
+	pvResp, err = pv.IncrementVersion(semver.RelCand, false)
 	if err != nil {
 		t.Error("Got error", err)
 	}

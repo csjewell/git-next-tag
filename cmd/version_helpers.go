@@ -104,7 +104,7 @@ func getVersionSegment(flags *pflag.FlagSet) (semver.VersionSegment, error) {
 		return semver.Gamma, nil
 	}
 	if getFlag("rc") {
-		return semver.RC, nil
+		return semver.RelCand, nil
 	}
 
 	return semver.NonSegment, errors.New("Did not specify how to upgrade the version")

@@ -3,7 +3,7 @@ module github.com/csjewell/git-next-tag
 go 1.21.5
 
 require (
-	github.com/csjewell/git-next-tag/semver v0.0.0-20240106015616-69b244cd9117
+	github.com/csjewell/git-next-tag/semver v0.0.0-20240106192500-57c8d1380c44
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/spf13/cobra v1.8.0

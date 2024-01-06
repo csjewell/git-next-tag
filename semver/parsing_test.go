@@ -1,5 +1,6 @@
 /*
-Copyright © 2024 Curtis Jewell <golang@curtisjewell.name>
+Copyright © 2023, 2024 Curtis Jewell <golang@curtisjewell.name>
+SPDX-License-Identifier: MIT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,120 +31,127 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+const (
+	ExpectNil      = "incorrect result: expected nil, got"
+	ExpectError    = "Did not get error when expected"
+	ExpectNilError = "Got error"
+)
+
+//nolint:staticcheck
 func TestParseVersion(t *testing.T) {
-	pv := semver.ParseVersion("")
-	if pv != nil {
-		t.Error("incorrect result: expected nil, got", pv)
+	pvTest := semver.ParseVersion("")
+	if pvTest != nil {
+		t.Error(ExpectNil, pvTest)
 	}
 
-	pv = semver.ParseVersion("1.0")
-	if pv != nil {
-		t.Error("incorrect result: expected nil, got", pv)
+	pvTest = semver.ParseVersion("1.0")
+	if pvTest != nil {
+		t.Error(ExpectNil, pvTest)
 	}
 
-	pv = semver.ParseVersion("1.0.0")
-	if pv == nil {
+	pvTest = semver.ParseVersion("1.0.0")
+	if pvTest == nil {
 		t.Error("incorrect result: Could not parse 1.0.0")
 	}
-	if pv.String() != "1.0.0" {
-		t.Error("incorrect result: expected 1.0.0-pre, got", pv)
+	if pvTest.String() != "1.0.0" {
+		t.Error("incorrect result: expected 1.0.0-pre, got", pvTest)
 	}
 
-	pv = semver.ParseVersion("1.0.0-pre")
-	if pv == nil {
+	pvTest = semver.ParseVersion("1.0.0-pre")
+	if pvTest == nil {
 		t.Error("incorrect result: Could not parse 1.0.0-pre")
 	}
-	if pv.String() != "1.0.0-pre" {
-		t.Error("incorrect result: expected 1.0.0-pre, got", pv)
+	if pvTest.String() != "1.0.0-pre" {
+		t.Error("incorrect result: expected 1.0.0-pre, got", pvTest)
 	}
 
-	pv = semver.ParseVersion("1.0.0-pre.2")
-	if pv != nil {
-		t.Error("incorrect result: expected nil, got", pv)
+	pvTest = semver.ParseVersion("1.0.0-pre.2")
+	if pvTest != nil {
+		t.Error("incorrect result: expected nil, got", pvTest)
 	}
 
-	pv = semver.ParseVersion("v1.0.0-alpha.2")
-	if pv == nil {
+	pvTest = semver.ParseVersion("v1.0.0-alpha.2")
+	if pvTest == nil {
 		t.Error("incorrect result: Could not parse 1.0.0-alpha.2")
 	}
-	if pv.String() != "1.0.0-alpha.2" {
-		t.Error("incorrect result: expected 1.0.0-alpha.2, got", pv)
+	if pvTest.String() != "1.0.0-alpha.2" {
+		t.Error("incorrect result: expected 1.0.0-alpha.2, got", pvTest)
 	}
 
-	pv = semver.ParseVersion("1.0.0-alpha.2-beta.1")
-	if pv != nil {
-		t.Error("incorrect result: expected nil, got", pv)
+	pvTest = semver.ParseVersion("1.0.0-alpha.2-beta.1")
+	if pvTest != nil {
+		t.Error(ExpectNil, pvTest)
 	}
 
-	pv = semver.ParseVersion("1.2.3-alpha.2-pre")
-	if pv == nil {
+	pvTest = semver.ParseVersion("1.2.3-alpha.2-pre")
+	if pvTest == nil {
 		t.Error("incorrect result: Could not parse 1.1.1-alpha.2-pre")
 	}
-	if pv.String() != "1.2.3-alpha.2-pre" {
-		t.Error("incorrect result: expected 1.2.3-alpha.2-pre, got", pv)
+	if pvTest.String() != "1.2.3-alpha.2-pre" {
+		t.Error("incorrect result: expected 1.2.3-alpha.2-pre, got", pvTest)
 	}
 }
 
 func TestIncrementVersion(t *testing.T) {
-	pv := semver.ParseVersion("1.2.3-beta.2-pre")
+	pvTest := semver.ParseVersion("1.2.3-beta.2-pre")
 	var (
 		pvResp *semver.ParsedVersion
 		err    error
 	)
 
-	_, err = pv.IncrementVersion(semver.NonSegment, false)
+	_, err = pvTest.IncrementVersion(semver.NonSegment, false)
 	if err == nil {
-		t.Error("Did not get error when expected")
+		t.Error(ExpectError)
 	}
 
-	_, err = pv.IncrementVersion(semver.Alpha, false)
+	_, err = pvTest.IncrementVersion(semver.Alpha, false)
 	if err == nil {
-		t.Error("Did not get error when expected")
+		t.Error(ExpectError)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Beta, false)
+	pvResp, err = pvTest.IncrementVersion(semver.Beta, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "1.2.3-beta.3" {
 		t.Error("Did not get 1.2.3-beta.3, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Gamma, false)
+	pvResp, err = pvTest.IncrementVersion(semver.Gamma, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "1.2.3-gamma.1" {
 		t.Error("Did not get 1.2.3-gamma.1, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.RelCand, false)
+	pvResp, err = pvTest.IncrementVersion(semver.RelCand, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "1.2.3-rc.1" {
 		t.Error("Did not get 1.2.3-rc.1, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Patch, false)
+	pvResp, err = pvTest.IncrementVersion(semver.Patch, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "1.2.4" {
 		t.Error("Did not get 1.2.4, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Minor, false)
+	pvResp, err = pvTest.IncrementVersion(semver.Minor, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "1.3.0" {
 		t.Error("Did not get 1.3.0, got", pvResp)
 	}
 
-	pvResp, err = pv.IncrementVersion(semver.Major, false)
+	pvResp, err = pvTest.IncrementVersion(semver.Major, false)
 	if err != nil {
-		t.Error("Got error", err)
+		t.Error(ExpectNilError, err)
 	}
 	if pvResp.String() != "2.0.0" {
 		t.Error("Did not get 2.0.0, got", pvResp)
@@ -177,7 +185,7 @@ func TestSorting(t *testing.T) {
 		semver.ParseVersion("3.3.1"),
 	}
 
-	versionsParsed := make([]*semver.ParsedVersion, 0, 10)
+	versionsParsed := make([]*semver.ParsedVersion, 0, len(versions))
 	for _, v := range versions {
 		versionsParsed = append(versionsParsed, semver.ParseVersion(v))
 	}

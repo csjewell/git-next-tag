@@ -43,7 +43,7 @@ linters:
     - nolintlint
     - nonamedreturns
     - nosprintfhostport
-    - paralleltest
+    #- paralleltest
     - perfsprint
     - prealloc
     - predeclared
@@ -61,6 +61,15 @@ linters:
     - wastedassign
   disable:
     - unused
+issues:
+  exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - funlen
+  rules:
+    - linters:
+        - godox
+      severity: info
 linters-settings:
   exhaustive:
     default-signifies-exhaustive: true

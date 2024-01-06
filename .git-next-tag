@@ -1,4 +1,5 @@
 always_leave_version_pre: true
 initial_v: true
 tag_annotated: false
-version_files: []
+version_files:
+  - cmd/version.go

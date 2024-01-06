@@ -44,7 +44,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-var repo *git.Repository
+var (
+	gitDir string
+	repo   *git.Repository
+)
 
 var rootCmd = &cobra.Command{
 	Use:                        "git-next-tag",
@@ -286,31 +289,32 @@ func getNextVersion(cmd *cobra.Command, tags map[string]*object.Tag) (
 
 		pvNext = semver.ParseVersion(vNext)
 		vsIncrement = semver.Patch
-	} else {
-		tagVersions := make([]*semver.ParsedVersion, 0, len(tags))
-		for k := range tags {
-			pv := semver.ParseVersion(k)
-			tagVersions = append(tagVersions, pv)
-		}
+		return vsIncrement, pvNext, err
+	}
 
-		sort.Sort(semver.ParsedVersionSlice(tagVersions))
+	tagVersions := make([]*semver.ParsedVersion, 0, len(tags))
+	for k := range tags {
+		pv := semver.ParseVersion(k)
+		tagVersions = append(tagVersions, pv)
+	}
 
-		// To turn the slice around so that the greatest versions are first
-		slices.Reverse(tagVersions)
+	sort.Sort(semver.ParsedVersionSlice(tagVersions))
 
-		pvCurrent := tagVersions[0]
-		vCurrent := pvCurrent.String()
-		slog.Debug("Current tag: " + normalizeVersion(vCurrent))
+	// To turn the slice around so that the greatest versions are first
+	slices.Reverse(tagVersions)
 
-		vsIncrement, err = getVersionSegment(cmd.Flags())
-		if err != nil {
-			return semver.NonSegment, nil, err
-		}
+	pvCurrent := tagVersions[0]
+	vCurrent := pvCurrent.String()
+	slog.Debug("Current tag: " + normalizeVersion(vCurrent))
 
-		pvNext, err = pvCurrent.IncrementVersion(vsIncrement, false)
-		if err != nil {
-			return semver.NonSegment, nil, err
-		}
+	vsIncrement, err = getVersionSegment(cmd.Flags())
+	if err != nil {
+		return semver.NonSegment, nil, err
+	}
+
+	pvNext, err = pvCurrent.IncrementVersion(vsIncrement, false)
+	if err != nil {
+		return semver.NonSegment, nil, err
 	}
 
 	return vsIncrement, pvNext, err
